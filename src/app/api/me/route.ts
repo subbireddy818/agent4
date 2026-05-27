@@ -11,7 +11,7 @@ import { sessionCookieName, verifySession } from "@/lib/session";
 export async function GET() {
   const jar = await cookies();
   const token = jar.get(sessionCookieName)?.value;
-  const session = verifySession(token);
+  const session = await verifySession(token);
 
   if (!session) {
     return NextResponse.json({ user: null }, { status: 200 });

@@ -39,14 +39,14 @@ function isAllowed(role: string, pathname: string): boolean {
   return true;
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   if (!isProtected) return NextResponse.next();
 
   const token = req.cookies.get(sessionCookieName)?.value;
-  const session = verifySession(token);
+  const session = await verifySession(token);
 
   if (!session) {
     const loginUrl = req.nextUrl.clone();
