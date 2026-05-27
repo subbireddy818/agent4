@@ -42,7 +42,10 @@ npm run dev
 ### Demo accounts
 
 After running the seed in `supabase/schema.sql` you can sign in on the
-`/auth/login` page with any of these phone numbers and the OTP `123456`:
+`/auth/login` page with any of these phone numbers. The OTP is generated
+server-side and delivered to your WhatsApp via GallaBox; in development
+the OTP is also echoed to the server console (see "Auth in dev" below)
+so you can grab it without needing a real WhatsApp message.
 
 | Phone              | Role   | Notes                                  |
 |--------------------|--------|----------------------------------------|
@@ -50,8 +53,27 @@ After running the seed in `supabase/schema.sql` you can sign in on the
 | `+91 88888 88888`  | builder| Prestige Group                          |
 | `+91 99999 99999`  | admin  | Verification console                   |
 
-> The hardcoded `123456` OTP is a dev shortcut and is being replaced with
-> Supabase Auth in a follow-up PR. See `docs/` for the full project plan.
+### Auth in dev
+
+When `NODE_ENV !== 'production'`, the `requestOtp` server action also logs
+the OTP to the server console and returns it in the response — so you can
+log in even if GallaBox isn't configured locally:
+
+```
+[auth] OTP for +91 98765 43210: 482917 (delivery: skipped)
+```
+
+In production the OTP is **only** delivered via WhatsApp.
+
+### Generating AUTH_SECRET
+
+The session JWT is signed with HS256 keyed by `AUTH_SECRET`. Generate one:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Set it in `.env.local` and in your Vercel project's environment variables.
 
 ## Routes
 
