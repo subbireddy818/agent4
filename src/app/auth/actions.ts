@@ -122,7 +122,7 @@ async function setSessionCookie(payload: {
   role: Role | "verification" | "operations";
   name: string;
 }) {
-  const token = signSession(payload);
+  const token = await signSession(payload);
   const jar = await cookies();
   jar.set(sessionCookieName, token, {
     httpOnly: true,
@@ -195,7 +195,7 @@ async function requestOtpImpl(input: RequestOtpInput): Promise<RequestOtpResult>
 
   const otp = generateOtp();
   const salt = newOtpSalt();
-  const otpHash = hashOtp(otp, salt);
+  const otpHash = await hashOtp(otp, salt);
   const expiresAt = new Date(Date.now() + OTP_TTL_MS).toISOString();
   const { ip, ua } = await getRequestMeta();
 
@@ -312,7 +312,7 @@ async function verifyOtpImpl(input: VerifyOtpInput): Promise<VerifyOtpResult> {
   }
 
   const expected = session.otp_hash as string;
-  const provided = hashOtp(code, session.salt as string);
+  const provided = await hashOtp(code, session.salt as string);
 
   if (!timingSafeEqualHex(expected, provided)) {
     await supabaseAdmin

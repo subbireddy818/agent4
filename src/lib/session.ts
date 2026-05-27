@@ -1,14 +1,17 @@
-import crypto from "crypto";
-
 // -----------------------------------------------------------------------------
-// Session JWTs (HS256) — no third-party JWT lib so we keep the dependency
-// surface minimal and the cryptography auditable.
+// Session JWTs and OTP hashing — implemented with the Web Crypto API.
+//
+// Why Web Crypto instead of node:crypto:
+//   This module is imported by both server actions / route handlers (Node
+//   runtime) AND by middleware (Edge runtime). The Edge runtime does NOT
+//   provide Node's `crypto` module, so `import crypto from "crypto"` made
+//   middleware silently treat every request as unauthenticated, redirecting
+//   logged-in users back to /auth/login. Web Crypto's `globalThis.crypto`
+//   is available in both runtimes (Node 20+ and Edge), keeping a single
+//   portable implementation.
 //
 // Format: base64url(headerJSON).base64url(payloadJSON).base64url(hmacSig)
 // Algorithm: HS256 (HMAC-SHA256) keyed by AUTH_SECRET.
-//
-// We sign the session cookie set after a successful OTP verification.
-// Middleware and `/api/me` parse it back to identify the current user.
 // -----------------------------------------------------------------------------
 
 export interface SessionPayload {
@@ -26,7 +29,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 export const sessionCookieName = SESSION_COOKIE_NAME;
 export const sessionTtlSeconds = SESSION_TTL_SECONDS;
 
-function getSecret(): Buffer {
+function getSecretBytes(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
   if (!secret || secret.length < 32) {
     throw new Error(
@@ -35,27 +38,50 @@ function getSecret(): Buffer {
         "and set it in your environment."
     );
   }
-  return Buffer.from(secret, "utf8");
+  return new TextEncoder().encode(secret);
 }
 
-function base64UrlEncode(buf: Buffer): string {
-  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// -----------------------------------------------------------------------------
+// base64url helpers — atob/btoa are global in both Node 18+ and Edge.
+// -----------------------------------------------------------------------------
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function base64UrlDecode(s: string): Buffer {
-  s = s.replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4) s += "=";
-  return Buffer.from(s, "base64");
+function base64UrlToBytes(s: string): Uint8Array {
+  const normalised = s.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalised + "===".slice((normalised.length + 3) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
-/**
- * Sign an HS256 session JWT for the given user. Caller is responsible for
- * passing a fresh `iat` / `exp` if the defaults aren't appropriate.
- */
-export function signSession(
+function utf8(s: string): Uint8Array {
+  return new TextEncoder().encode(s);
+}
+
+async function getHmacKey(): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    getSecretBytes(),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"]
+  );
+}
+
+// -----------------------------------------------------------------------------
+// signSession / verifySession
+// -----------------------------------------------------------------------------
+
+export async function signSession(
   payload: Omit<SessionPayload, "iat" | "exp">,
   ttlSeconds: number = SESSION_TTL_SECONDS
-): string {
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const fullPayload: SessionPayload = {
     ...payload,
@@ -64,18 +90,22 @@ export function signSession(
   };
 
   const header = { alg: "HS256", typ: "JWT" };
-  const headerB64 = base64UrlEncode(Buffer.from(JSON.stringify(header)));
-  const payloadB64 = base64UrlEncode(Buffer.from(JSON.stringify(fullPayload)));
+  const headerB64 = bytesToBase64Url(utf8(JSON.stringify(header)));
+  const payloadB64 = bytesToBase64Url(utf8(JSON.stringify(fullPayload)));
   const signingInput = `${headerB64}.${payloadB64}`;
-  const sig = crypto.createHmac("sha256", getSecret()).update(signingInput).digest();
-  return `${signingInput}.${base64UrlEncode(sig)}`;
+
+  const key = await getHmacKey();
+  const sig = await crypto.subtle.sign("HMAC", key, utf8(signingInput));
+  return `${signingInput}.${bytesToBase64Url(new Uint8Array(sig))}`;
 }
 
 /**
  * Verify and parse an HS256 JWT. Returns null on any failure
  * (bad signature, expired, malformed). Never throws.
  */
-export function verifySession(token: string | undefined | null): SessionPayload | null {
+export async function verifySession(
+  token: string | undefined | null
+): Promise<SessionPayload | null> {
   if (!token) return null;
   const parts = token.split(".");
   if (parts.length !== 3) return null;
@@ -83,26 +113,34 @@ export function verifySession(token: string | undefined | null): SessionPayload 
   const [headerB64, payloadB64, sigB64] = parts;
   const signingInput = `${headerB64}.${payloadB64}`;
 
-  let expectedSig: Buffer;
+  let key: CryptoKey;
   try {
-    expectedSig = crypto.createHmac("sha256", getSecret()).update(signingInput).digest();
+    key = await getHmacKey();
+  } catch {
+    // AUTH_SECRET missing — fail closed (no session) rather than crashing
+    // middleware. The user gets cleanly redirected to /auth/login.
+    return null;
+  }
+
+  let providedSig: Uint8Array;
+  try {
+    providedSig = base64UrlToBytes(sigB64);
   } catch {
     return null;
   }
 
-  let providedSig: Buffer;
+  let valid: boolean;
   try {
-    providedSig = base64UrlDecode(sigB64);
+    valid = await crypto.subtle.verify("HMAC", key, providedSig, utf8(signingInput));
   } catch {
     return null;
   }
-
-  if (expectedSig.length !== providedSig.length) return null;
-  if (!crypto.timingSafeEqual(expectedSig, providedSig)) return null;
+  if (!valid) return null;
 
   let payload: SessionPayload;
   try {
-    payload = JSON.parse(base64UrlDecode(payloadB64).toString("utf8")) as SessionPayload;
+    const json = new TextDecoder().decode(base64UrlToBytes(payloadB64));
+    payload = JSON.parse(json) as SessionPayload;
   } catch {
     return null;
   }
@@ -118,24 +156,43 @@ export function verifySession(token: string | undefined | null): SessionPayload 
 // max 5 attempts don't need bcrypt's work factor; salted SHA-256 is fine.
 // -----------------------------------------------------------------------------
 
-export function generateOtp(): string {
-  // Crypto-safe 6-digit code, zero-padded.
-  return (crypto.randomInt(0, 1_000_000)).toString().padStart(6, "0");
+function bytesToHex(bytes: Uint8Array): string {
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, "0");
+  }
+  return hex;
 }
 
-export function hashOtp(otp: string, salt: string): string {
-  return crypto.createHash("sha256").update(`${salt}${otp}`, "utf8").digest("hex");
+export function generateOtp(): string {
+  // Crypto-safe 6-digit code: 4 random bytes -> 32-bit unsigned -> mod 1e6.
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  const num = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+  return (num % 1_000_000).toString().padStart(6, "0");
+}
+
+export async function hashOtp(otp: string, salt: string): Promise<string> {
+  const data = utf8(`${salt}${otp}`);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return bytesToHex(new Uint8Array(hash));
 }
 
 export function newOtpSalt(): string {
-  return crypto.randomBytes(16).toString("hex");
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
 }
 
+/**
+ * Constant-time hex string comparison. Web Crypto doesn't expose a
+ * timing-safe equal helper directly, so this is implemented manually.
+ */
 export function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
-  try {
-    return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
-  } catch {
-    return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
+  return diff === 0;
 }
