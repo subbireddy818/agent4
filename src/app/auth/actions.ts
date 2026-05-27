@@ -62,6 +62,50 @@ function formatPhone(raw: string): string {
   return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
 }
 
+/**
+ * Turn a Supabase / Postgrest error into a human-readable message that
+ * actually tells you what's wrong. The raw object always goes to the
+ * server log; the returned string is what the user sees in the UI.
+ */
+function explainSupabaseError(err: unknown, table: string): string {
+  // The Supabase JS client returns objects shaped like:
+  //   { message, code, details, hint }
+  // where `code` is the underlying PostgreSQL SQLSTATE.
+  const e = err as { message?: string; code?: string; details?: string } | null;
+  const msg = e?.message || "";
+  const code = e?.code || "";
+
+  // Table missing — almost always means the migration hasn't been run.
+  if (code === "42P01" || /relation .* does not exist/i.test(msg)) {
+    return (
+      `Database table "${table}" is missing. ` +
+      `Run supabase/migrations/0002_otp_sessions.sql (and 0001_security_and_audit.sql) ` +
+      `in the Supabase SQL editor, then try again.`
+    );
+  }
+
+  // Permission denied — usually a wrong / missing service-role key on the server.
+  if (code === "42501" || /permission denied/i.test(msg)) {
+    return (
+      `Database permission denied for "${table}". ` +
+      `Check that SUPABASE_SERVICE_ROLE_KEY is set on the server (Vercel project settings).`
+    );
+  }
+
+  // Column missing — schema drift between code and DB.
+  if (code === "42703" || /column .* does not exist/i.test(msg)) {
+    return (
+      `Schema mismatch on "${table}": ${msg}. ` +
+      `You may be missing a migration. Re-run everything in supabase/migrations/.`
+    );
+  }
+
+  // Fallback: still surface the underlying message so the user/dev can act on it.
+  return msg
+    ? `Database error on "${table}": ${msg}`
+    : `Could not access "${table}". Please try again.`;
+}
+
 async function getRequestMeta() {
   const h = await headers();
   const ip =
@@ -163,7 +207,7 @@ export async function requestOtp(input: RequestOtpInput): Promise<RequestOtpResu
 
   if (insertErr || !inserted) {
     console.error("requestOtp: failed to insert otp_session", insertErr);
-    return { ok: false, error: "Could not create OTP session. Please try again." };
+    return { ok: false, error: explainSupabaseError(insertErr, "otp_sessions") };
   }
 
   // Deliver via WhatsApp through GallaBox.
@@ -231,7 +275,7 @@ export async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResult>
 
   if (selectErr) {
     console.error("verifyOtp: select failed", selectErr);
-    return { ok: false, error: "Server error. Please try again." };
+    return { ok: false, error: explainSupabaseError(selectErr, "otp_sessions") };
   }
 
   const session = rows?.[0];
