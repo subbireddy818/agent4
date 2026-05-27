@@ -1,5 +1,79 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Verify a Meta WhatsApp webhook payload using the X-Hub-Signature-256 header.
+ *
+ * Meta signs the *raw request body* with HMAC-SHA256 using the App Secret
+ * configured in the Meta App dashboard. The header is of the form
+ * "sha256=<hex>". We compare with timing-safe equality.
+ *
+ * If WHATSAPP_APP_SECRET is not set we treat verification as disabled and
+ * return true — this keeps local dev and the GallaBox/simulator paths
+ * working without extra config. In production, set the secret.
+ */
+function verifyMetaSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const secret = process.env.WHATSAPP_APP_SECRET;
+  if (!secret) return true; // verification disabled — see note above
+  if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
+
+  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  const provided = signatureHeader.slice("sha256=".length);
+
+  // Lengths must match before timingSafeEqual, otherwise it throws.
+  if (expected.length !== provided.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(provided, "hex"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Insert a row into whatsapp_messages. All failures are swallowed so that
+ * audit-logging never breaks the bot itself.
+ */
+async function logWhatsappMessage(row: {
+  direction: "inbound" | "outbound";
+  phone?: string | null;
+  agent_id?: string | null;
+  wamid?: string | null;
+  message_type?: string;
+  content?: string | null;
+  parsed_intent?: string | null;
+  parsed_entities?: Record<string, unknown> | null;
+  source?: string | null;
+  outbound_status?: number | null;
+  error_message?: string | null;
+  raw_payload?: unknown;
+}) {
+  try {
+    await supabase.from("whatsapp_messages").insert([{
+      direction: row.direction,
+      phone: row.phone ?? null,
+      agent_id: row.agent_id ?? null,
+      wamid: row.wamid ?? null,
+      message_type: row.message_type ?? "text",
+      content: row.content ?? null,
+      parsed_intent: row.parsed_intent ?? null,
+      parsed_entities: row.parsed_entities ?? null,
+      source: row.source ?? null,
+      outbound_status: row.outbound_status ?? null,
+      error_message: row.error_message ?? null,
+      // Cap the raw payload so we don't bloat the table.
+      raw_payload: row.raw_payload
+        ? JSON.parse(JSON.stringify(row.raw_payload).slice(0, 4000))
+        : null,
+    }]);
+  } catch (err) {
+    console.error("whatsapp_messages insert failed:", err);
+  }
+}
 
 // GET handler: Meta Webhook Subscription Handshake Verification
 export async function GET(req: NextRequest) {
@@ -24,27 +98,34 @@ export async function GET(req: NextRequest) {
 // POST handler: Receives incoming chat prompts from brokers (Meta, GallaBox, or Simulator)
 export async function POST(req: NextRequest) {
   let fromPhoneRaw = "";
-  try {
-    const payload = await req.json();
-    console.log("WhatsApp Webhook Payload Received:", JSON.stringify(payload));
+  // Read the raw body once, so we can both verify the signature and parse it.
+  const rawBody = await req.text();
+  const signatureHeader = req.headers.get("x-hub-signature-256");
 
-    // DIAGNOSTICS: Log raw payload to Supabase (upsert ensures row is created if missing)
+  // Reject Meta-style payloads with bad signatures. GallaBox and the local
+  // simulator do not send this header — when WHATSAPP_APP_SECRET is unset
+  // we accept everything (see verifyMetaSignature).
+  if (signatureHeader && !verifyMetaSignature(rawBody, signatureHeader)) {
+    console.warn("Rejected WhatsApp webhook: invalid x-hub-signature-256");
+    await logWhatsappMessage({
+      direction: "inbound",
+      message_type: "system",
+      content: rawBody.slice(0, 1000),
+      error_message: "invalid x-hub-signature-256",
+      source: "meta",
+    });
+    return NextResponse.json({ status: "forbidden", message: "Invalid signature" }, { status: 403 });
+  }
+
+  try {
+    let payload: any;
     try {
-      const nowIST = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-      await supabase
-        .from("profiles")
-        .upsert({
-          phone: "+91 99999 99999",
-          name: "Webhook Debug Log",
-          role: "admin",
-          status: "approved",
-          points: 0,
-          referrals_count: 0,
-          rejection_reason: `[${nowIST} IST] Received from: ${payload.data?.contact?.phoneNumber || payload.from || "unknown"} | Msg: ${JSON.stringify(payload).slice(0, 800)}`
-        }, { onConflict: "phone" });
-    } catch (dbErr) {
-      console.error("Diagnostics save failed:", dbErr);
+      payload = rawBody ? JSON.parse(rawBody) : {};
+    } catch (parseErr) {
+      console.error("WhatsApp webhook: invalid JSON body", parseErr);
+      return NextResponse.json({ status: "error", message: "Invalid JSON" }, { status: 400 });
     }
+    console.log("WhatsApp Webhook Payload Received:", JSON.stringify(payload));
 
 
     // Support Meta, GallaBox, and Simulator payload formats
@@ -82,8 +163,42 @@ export async function POST(req: NextRequest) {
 
     if (!textBody || !fromPhoneRaw) {
       console.log("Ignored payload: Missing message body or sender phone number.");
+      await logWhatsappMessage({
+        direction: "inbound",
+        phone: fromPhoneRaw || null,
+        message_type: "system",
+        content: textBody || null,
+        error_message: "missing body or phone",
+        raw_payload: payload,
+      });
       return NextResponse.json({ status: "ignored", message: "Missing body or phone" });
     }
+
+    // Detect which BSP/source this payload is from. Used for audit logging.
+    const isFromMeta = !!payload?.entry?.[0]?.changes?.[0];
+    const isFromSimulatorEarly =
+      payload?.entry?.[0]?.id === "sandbox-entry" ||
+      payload?.from === "simulator" ||
+      payload?.fromPhone === "simulator";
+    const source: "meta" | "gallabox" | "simulator" =
+      isFromSimulatorEarly ? "simulator" : isFromMeta ? "meta" : "gallabox";
+
+    // Best-effort wamid extraction (Meta only).
+    const wamid =
+      payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.id ||
+      null;
+
+    // Audit-log the inbound message immediately. We don't know the
+    // agent_id yet; the lookup happens further down.
+    await logWhatsappMessage({
+      direction: "inbound",
+      phone: fromPhoneRaw,
+      wamid,
+      message_type: "text",
+      content: textBody,
+      source,
+      raw_payload: payload,
+    });
 
     const lowerText = textBody.toLowerCase();
 
@@ -117,53 +232,65 @@ export async function POST(req: NextRequest) {
       const apiSecret = process.env.GALLABOX_API_SECRET;
       const channelId = process.env.GALLABOX_CHANNEL_ID;
 
-      if (apiKey && apiSecret && channelId && !isFromSimulator) {
-        const cleanPhone = fromPhoneRaw.replace(/\D/g, "");
-        const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-        console.log(`Sending live GallaBox reply to ${finalPhone}: ${replyText}`);
-        try {
-          const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
-            method: "POST",
-            headers: {
-              "apiKey": apiKey,
-              "apiSecret": apiSecret,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              channelId: channelId,
-              channelType: "whatsapp",
-              recipient: {
-                name: "Broker",
-                phone: finalPhone
-              },
-              whatsapp: {
-                type: "text",
-                text: {
-                  body: replyText
-                }
-              }
-            })
-          });
+      // For the simulator (and any time GallaBox isn't configured) we still
+      // want an audit trail of what the bot would have sent.
+      if (!apiKey || !apiSecret || !channelId || isFromSimulator) {
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: fromPhoneRaw,
+          message_type: "text",
+          content: replyText,
+          source,
+          // 0 indicates "not actually sent over the wire".
+          outbound_status: 0,
+          error_message: isFromSimulator ? "simulator (not sent)" : "GallaBox not configured",
+        });
+        return;
+      }
 
-          const resData = await res.json();
-          console.log(`GallaBox reply status: ${res.status}`, JSON.stringify(resData));
+      const cleanPhone = fromPhoneRaw.replace(/\D/g, "");
+      const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+      console.log(`Sending live GallaBox reply to ${finalPhone}: ${replyText}`);
+      try {
+        const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
+          method: "POST",
+          headers: {
+            "apiKey": apiKey,
+            "apiSecret": apiSecret,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            channelId: channelId,
+            channelType: "whatsapp",
+            recipient: { name: "Broker", phone: finalPhone },
+            whatsapp: { type: "text", text: { body: replyText } },
+          }),
+        });
 
-          // Update diagnostics with GallaBox response
-          await supabase
-            .from("profiles")
-            .update({
-              rejection_reason: `Webhook received | GallaBox Send Status: ${res.status} | Resp: ${JSON.stringify(resData).slice(0, 400)}`
-            })
-            .eq("phone", "+91 99999 99999");
-        } catch (e: any) {
-          console.error("GallaBox outbound fetch failed:", e);
-          await supabase
-            .from("profiles")
-            .update({
-              rejection_reason: `Webhook received | GallaBox Send Error: ${e.message}`
-            })
-            .eq("phone", "+91 99999 99999");
-        }
+        const resData = await res.json().catch(() => ({}));
+        console.log(`GallaBox reply status: ${res.status}`, JSON.stringify(resData));
+
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: fromPhoneRaw,
+          message_type: "text",
+          content: replyText,
+          source,
+          outbound_status: res.status,
+          error_message: res.ok ? null : JSON.stringify(resData).slice(0, 500),
+          raw_payload: resData,
+        });
+      } catch (e: any) {
+        console.error("GallaBox outbound fetch failed:", e);
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: fromPhoneRaw,
+          message_type: "text",
+          content: replyText,
+          source,
+          outbound_status: null,
+          error_message: e?.message || String(e),
+        });
       }
     };
 
