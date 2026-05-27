@@ -129,7 +129,13 @@ function LoginContent() {
         } catch {
           /* private mode — ignore */
         }
-        router.push(next || result.redirect);
+        // Use a HARD navigation (full page load) instead of router.push so
+        // the just-set Set-Cookie header is committed and sent on the very
+        // next request to the protected dashboard. Soft navigation via
+        // router.push has been observed to race with cookie commit on
+        // Vercel and end up bouncing the user back through middleware.
+        const target = next || result.redirect;
+        window.location.assign(target);
         return;
       }
 
@@ -137,6 +143,12 @@ function LoginContent() {
         setStep(3);
         return;
       }
+
+      // Defensive: server returned something we don't recognise.
+      // Surface it instead of silently sitting on the same page.
+      setMessage(
+        `Unexpected response: ${JSON.stringify(result).slice(0, 300)}`
+      );
     } catch (err) {
       setMessage(
         err instanceof Error ? err.message : "Network error. Please try again."
