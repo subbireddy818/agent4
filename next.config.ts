@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  }
+  // No build-time escape hatches. Type errors must be fixed, not silenced.
 };
 
 export default nextConfig;
