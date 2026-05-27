@@ -163,6 +163,16 @@ export interface RequestOtpResult {
 }
 
 export async function requestOtp(input: RequestOtpInput): Promise<RequestOtpResult> {
+  try {
+    return await requestOtpImpl(input);
+  } catch (err) {
+    console.error("requestOtp threw:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+}
+
+async function requestOtpImpl(input: RequestOtpInput): Promise<RequestOtpResult> {
   const phone = formatPhone(input.phone);
   if (!phone) return { ok: false, error: "Please enter a valid 10-digit phone number." };
 
@@ -258,6 +268,16 @@ export type VerifyOtpResult =
   | { ok: false; error: string };
 
 export async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResult> {
+  try {
+    return await verifyOtpImpl(input);
+  } catch (err) {
+    console.error("verifyOtp threw:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+}
+
+async function verifyOtpImpl(input: VerifyOtpInput): Promise<VerifyOtpResult> {
   const phone = formatPhone(input.phone);
   if (!phone) return { ok: false, error: "Invalid phone number." };
 
@@ -409,6 +429,16 @@ export type SubmitKycResult =
   | { ok: false; error: string };
 
 export async function submitKyc(input: SubmitKycInput): Promise<SubmitKycResult> {
+  try {
+    return await submitKycImpl(input);
+  } catch (err) {
+    console.error("submitKyc threw:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+}
+
+async function submitKycImpl(input: SubmitKycInput): Promise<SubmitKycResult> {
   const phone = formatPhone(input.phone);
   if (!phone) return { ok: false, error: "Invalid phone number." };
 
