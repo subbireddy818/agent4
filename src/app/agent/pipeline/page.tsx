@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { 
   Plus, Search, Filter, Kanban as KanbanIcon, 
   List as ListIcon, X, MapPin, Phone, 
-  Trash2, ArrowRightLeft, Sparkles, MessageSquare, 
+  Trash2, ArrowRightLeft, MessageSquare, 
   PhoneCall, Calendar, Share2, Loader2 
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -18,7 +18,6 @@ interface Client {
   budget: string;
   date: string;
   propertyType: "Plot" | "Apartment" | "Villa" | "Commercial";
-  aiScore: number;
   lastInteraction: string;
   stage: "New" | "Interested" | "Site Visit" | "Negotiation" | "Closed" | "Lost";
 }
@@ -94,7 +93,6 @@ export default function ClientPipeline() {
         const mappedClients: Client[] = data.leads.map((l: any) => {
           const displayProp = l.details?.propertyType || "Apartment";
           const interaction = l.details?.lastInteraction || "Lead created";
-          const score = l.details?.aiScore || Math.floor(65 + Math.random() * 30);
 
           return {
             id: l.id,
@@ -105,7 +103,6 @@ export default function ClientPipeline() {
             budget: l.budget || "₹1.50 Cr",
             date: new Date(l.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
             propertyType: displayProp,
-            aiScore: score,
             lastInteraction: interaction,
             stage: STAGE_MAP_DB_TO_UI[l.status] || "New"
           };
@@ -150,7 +147,6 @@ export default function ClientPipeline() {
           budget: newClientBudget,
           details: {
             propertyType: newClientProp,
-            aiScore: Math.floor(65 + Math.random() * 30),
             lastInteraction: "Lead logged"
           }
         }),
@@ -334,10 +330,6 @@ export default function ClientPipeline() {
                             {client.bhk}
                           </span>
 
-                          <span className="text-[9px] font-extrabold text-[#16c47f] flex items-center space-x-0.5 bg-emerald-50 px-1.5 py-0.5 rounded">
-                            <Sparkles className="w-3 h-3 text-[#25d366]" />
-                            <span>AI Score: {client.aiScore}</span>
-                          </span>
                         </div>
                       </div>
 
