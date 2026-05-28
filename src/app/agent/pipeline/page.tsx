@@ -60,46 +60,38 @@ export default function ClientPipeline() {
 
   const stages: Client["stage"][] = ["New", "Interested", "Site Visit", "Negotiation", "Closed", "Lost"];
 
-  // Fetch client leads from Supabase
+  // Fetch client leads from server API (uses service role key — no permission issues)
   async function loadLeads() {
     setLoading(true);
     try {
-      // Get the authenticated user's ID directly from the session.
-      // This is the profile.id which is the same as agent_id in leads table.
-      let userId: string | null = null;
+      const res = await fetch("/api/leads");
+      if (!res.ok) {
+        console.error("Failed to fetch leads:", res.status);
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      
+      if (data.error) {
+        console.error("Leads API error:", data.error);
+        setLoading(false);
+        return;
+      }
+
+      // Set agentId from session for adding new leads
       try {
         const meRes = await fetch("/api/me");
         if (meRes.ok) {
           const meData = await meRes.json();
           if (meData.user?.id) {
-            userId = meData.user.id;
+            setAgentId(meData.user.id);
           }
         }
-      } catch {
-        // /api/me failed
-      }
+      } catch { /* ignore */ }
 
-      if (!userId) {
-        console.error("No authenticated user found. Cannot load leads.");
-        setLoading(false);
-        return;
-      }
-
-      setAgentId(userId);
-
-      // Fetch leads for this agent using the profile ID directly
-      const { data: leads, error } = await supabase
-        .from("leads")
-        .select("*")
-        .eq("agent_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching leads:", error);
-      }
-
-      if (leads) {
-        const mappedClients: Client[] = leads.map((l: any) => {
+      if (data.leads) {
+        const mappedClients: Client[] = data.leads.map((l: any) => {
           const displayProp = l.details?.propertyType || "Apartment";
           const interaction = l.details?.lastInteraction || "Lead created";
           const score = l.details?.aiScore || Math.floor(65 + Math.random() * 30);
@@ -144,35 +136,30 @@ export default function ClientPipeline() {
       alert("Please fill in Client Name, Preferred Area, and Budget.");
       return;
     }
-    if (!agentId) {
-      alert("Could not identify your agent profile. Please log out and log in again.");
-      return;
-    }
     setLoading(true);
 
     try {
-      const generatedScore = Math.floor(65 + Math.random() * 30);
-      
-      const { data, error } = await supabase
-        .from("leads")
-        .insert([{
-          agent_id: agentId,
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           name: newClientName,
           phone: newClientPhone || "98765 00000",
           requirement: newClientBhk,
           location: newClientLoc,
           budget: newClientBudget,
-          status: "new",
           details: {
             propertyType: newClientProp,
-            aiScore: generatedScore,
+            aiScore: Math.floor(65 + Math.random() * 30),
             lastInteraction: "Lead logged"
           }
-        }])
-        .select()
-        .single();
+        }),
+      });
 
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to add lead");
+      }
 
       setNewClientName("");
       setNewClientPhone("");
