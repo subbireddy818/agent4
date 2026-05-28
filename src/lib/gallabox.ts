@@ -133,16 +133,17 @@ export async function sendWhatsAppOTP(
     return sendWhatsAppText(rawPhone, fallbackBody, recipientName);
   }
 
-  // GallaBox authentication templates with "Copy Code" button require the OTP
-  // to be passed in the button component (sub_type: "url" with index 0).
-  // Meta's Cloud API format requires:
-  //   - body component with the OTP as parameter 1
-  //   - button component (sub_type: "url", index: 0) with the OTP
+  // Error 132000 "number of localizable_params (0)" means GallaBox accepted
+  // our API call but forwarded 0 parameters to Meta. The authentication
+  // template has {{1}} in the body + a "Copy Code" button that also needs
+  // the OTP value.
   //
-  // We try multiple formats because GallaBox's API has varied over time.
+  // GallaBox requires `localizableParams` array for template parameters,
+  // plus a `parameterFormat: "VALUE"` hint. We also include the button
+  // parameter via the `components` array with sub_type "COPY_CODE".
 
   const payloadFormats = [
-    // Format 1: GallaBox bodyValues (their documented simple format)
+    // Format 1: localizableParams array (GallaBox's actual working format)
     {
       channelId,
       channelType: "whatsapp",
@@ -151,11 +152,51 @@ export async function sendWhatsAppOTP(
         type: "template",
         template: {
           templateName: templateName,
-          bodyValues: { "1": otp },
+          language: "en",
+          localizableParams: [
+            { default: otp }
+          ],
+          components: [
+            {
+              type: "button",
+              sub_type: "COPY_CODE",
+              index: 0,
+              parameters: [
+                { type: "coupon_code", coupon_code: otp }
+              ]
+            }
+          ]
         },
       },
     },
-    // Format 2: Meta Cloud API style with components — body + COPY_CODE button
+    // Format 2: bodyValues with localizableParams + button
+    {
+      channelId,
+      channelType: "whatsapp",
+      recipient: { name: recipientName, phone: finalPhone },
+      whatsapp: {
+        type: "template",
+        template: {
+          templateName: templateName,
+          language: "en",
+          bodyValues: { "1": otp },
+          localizableParams: [
+            { default: otp }
+          ],
+          components: [
+            {
+              type: "button",
+              sub_type: "COPY_CODE",
+              index: 0,
+              parameters: [
+                { type: "coupon_code", coupon_code: otp }
+              ]
+            }
+          ]
+        },
+      },
+    },
+    // Format 3: Meta Cloud API style components only (body params + COPY_CODE button)
     {
       channelId,
       channelType: "whatsapp",
@@ -174,31 +215,17 @@ export async function sendWhatsAppOTP(
             },
             {
               type: "button",
-              sub_type: "url",
+              sub_type: "COPY_CODE",
               index: 0,
               parameters: [
-                { type: "text", text: otp }
+                { type: "coupon_code", coupon_code: otp }
               ]
             }
           ]
         },
       },
     },
-    // Format 3: GallaBox authentication-specific format with bodyValues + buttonValues
-    {
-      channelId,
-      channelType: "whatsapp",
-      recipient: { name: recipientName, phone: finalPhone },
-      whatsapp: {
-        type: "template",
-        template: {
-          templateName: templateName,
-          bodyValues: { "1": otp },
-          buttonValues: { "0": otp },
-        },
-      },
-    },
-    // Format 4: GallaBox with language specified + bodyValues
+    // Format 4: parameterFormat VALUE with bodyValues map
     {
       channelId,
       channelType: "whatsapp",
@@ -208,8 +235,22 @@ export async function sendWhatsAppOTP(
         template: {
           templateName: templateName,
           language: "en",
+          parameterFormat: "VALUE",
           bodyValues: { "1": otp },
           buttonValues: { "0": otp },
+        },
+      },
+    },
+    // Format 5: simple bodyValues (may work for some GallaBox versions)
+    {
+      channelId,
+      channelType: "whatsapp",
+      recipient: { name: recipientName, phone: finalPhone },
+      whatsapp: {
+        type: "template",
+        template: {
+          templateName: templateName,
+          bodyValues: { "1": otp },
         },
       },
     },
@@ -218,7 +259,7 @@ export async function sendWhatsAppOTP(
   for (let i = 0; i < payloadFormats.length; i++) {
     const payload = payloadFormats[i];
     try {
-      console.log(`[gallabox] Trying OTP template format ${i + 1} for ${finalPhone}...`);
+      console.log(`[gallabox] Trying OTP format ${i + 1} for ${finalPhone}:`, JSON.stringify(payload.whatsapp.template));
       const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
         method: "POST",
         headers: {
@@ -236,7 +277,7 @@ export async function sendWhatsAppOTP(
         // empty body
       }
 
-      console.log(`[gallabox] OTP format ${i + 1} response (${res.status}):`, JSON.stringify(responseBody));
+      console.log(`[gallabox] Format ${i + 1} response (${res.status}):`, JSON.stringify(responseBody));
 
       if (res.ok) {
         return {
