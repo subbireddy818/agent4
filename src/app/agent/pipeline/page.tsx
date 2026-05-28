@@ -143,7 +143,14 @@ export default function ClientPipeline() {
 
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName || !newClientLoc || !newClientBudget || !agentId) return;
+    if (!newClientName || !newClientLoc || !newClientBudget) {
+      alert("Please fill in Client Name, Preferred Area, and Budget.");
+      return;
+    }
+    if (!agentId) {
+      alert("Could not identify your agent profile. Please log out and log in again.");
+      return;
+    }
     setLoading(true);
 
     try {
