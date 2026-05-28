@@ -224,6 +224,9 @@ async function requestOtpImpl(input: RequestOtpInput): Promise<RequestOtpResult>
   // not just those who previously messaged the business number).
   const sendResult = await sendWhatsAppOTP(phone, otp);
 
+  // Always log in production too so we can debug delivery issues in Vercel logs.
+  console.log(`[auth] OTP for ${phone}: (delivery: ${sendResult.ok ? "accepted" : "FAILED"}, status: ${sendResult.status}, templateConfigured: ${!!process.env.GALLABOX_OTP_TEMPLATE})`, JSON.stringify(sendResult.responseBody));
+
   // In dev we don't require GallaBox to be configured — log the OTP so the
   // developer can grab it from the server console.
   const isDev = process.env.NODE_ENV !== "production";

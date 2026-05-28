@@ -133,11 +133,16 @@ export async function sendWhatsAppOTP(
     return sendWhatsAppText(rawPhone, fallbackBody, recipientName);
   }
 
-  // Try multiple payload formats for the authentication template.
-  // GallaBox's API for authentication templates uses a different structure
-  // than regular marketing/utility templates.
+  // GallaBox authentication templates with "Copy Code" button require the OTP
+  // to be passed in the button component (sub_type: "url" with index 0).
+  // Meta's Cloud API format requires:
+  //   - body component with the OTP as parameter 1
+  //   - button component (sub_type: "url", index: 0) with the OTP
+  //
+  // We try multiple formats because GallaBox's API has varied over time.
+
   const payloadFormats = [
-    // Format 1: Authentication template with components array (Meta Cloud API style)
+    // Format 1: GallaBox bodyValues (their documented simple format)
     {
       channelId,
       channelType: "whatsapp",
@@ -150,7 +155,7 @@ export async function sendWhatsAppOTP(
         },
       },
     },
-    // Format 2: Template with language and components (alternative GallaBox format)
+    // Format 2: Meta Cloud API style with components — body + COPY_CODE button
     {
       channelId,
       channelType: "whatsapp",
@@ -179,11 +184,41 @@ export async function sendWhatsAppOTP(
         },
       },
     },
+    // Format 3: GallaBox authentication-specific format with bodyValues + buttonValues
+    {
+      channelId,
+      channelType: "whatsapp",
+      recipient: { name: recipientName, phone: finalPhone },
+      whatsapp: {
+        type: "template",
+        template: {
+          templateName: templateName,
+          bodyValues: { "1": otp },
+          buttonValues: { "0": otp },
+        },
+      },
+    },
+    // Format 4: GallaBox with language specified + bodyValues
+    {
+      channelId,
+      channelType: "whatsapp",
+      recipient: { name: recipientName, phone: finalPhone },
+      whatsapp: {
+        type: "template",
+        template: {
+          templateName: templateName,
+          language: "en",
+          bodyValues: { "1": otp },
+          buttonValues: { "0": otp },
+        },
+      },
+    },
   ];
 
-  // Try format 1 first
-  for (const payload of payloadFormats) {
+  for (let i = 0; i < payloadFormats.length; i++) {
+    const payload = payloadFormats[i];
     try {
+      console.log(`[gallabox] Trying OTP template format ${i + 1} for ${finalPhone}...`);
       const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
         method: "POST",
         headers: {
@@ -201,7 +236,7 @@ export async function sendWhatsAppOTP(
         // empty body
       }
 
-      console.log(`[gallabox] OTP template send (${res.status}):`, JSON.stringify(responseBody));
+      console.log(`[gallabox] OTP format ${i + 1} response (${res.status}):`, JSON.stringify(responseBody));
 
       if (res.ok) {
         return {
@@ -211,26 +246,27 @@ export async function sendWhatsAppOTP(
         };
       }
 
-      // If first format fails with 4xx, try next format
+      // If 4xx, try next format
       if (res.status >= 400 && res.status < 500) {
-        console.warn(`[gallabox] Template format failed (${res.status}), trying next format...`);
+        console.warn(`[gallabox] Format ${i + 1} failed (${res.status}), trying next...`);
         continue;
       }
 
+      // 5xx — server error, no point trying other formats
       return {
         ok: false,
         status: res.status,
         responseBody,
-        error: `GallaBox template HTTP ${res.status}`,
+        error: `GallaBox template HTTP ${res.status}: ${JSON.stringify(responseBody)}`,
       };
     } catch (err) {
-      console.error("[gallabox] OTP template fetch error:", err);
+      console.error(`[gallabox] Format ${i + 1} fetch error:`, err);
       continue;
     }
   }
 
   // All template formats failed — fall back to plain text as last resort
   console.warn("[gallabox] All template formats failed, falling back to plain text");
-  const fallbackBody = `*AgentsApp* login code: *${otp}*\n\nValid for 10 minutes. Do not share this code with anyone.`;
+  const fallbackBody = `Your AgentsApp login code is *${otp}*\n\nValid for 10 minutes. Do not share this code.`;
   return sendWhatsAppText(rawPhone, fallbackBody, recipientName);
 }
