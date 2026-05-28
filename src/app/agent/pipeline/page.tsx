@@ -64,7 +64,24 @@ export default function ClientPipeline() {
   async function loadLeads() {
     setLoading(true);
     try {
-      const phone = localStorage.getItem("agentsapp_logged_in_phone") || "+91 98765 43210";
+      // Get the authenticated user's phone from the session (server-validated)
+      // to avoid localStorage stale data or format mismatches.
+      let phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+      try {
+        const meRes = await fetch("/api/me");
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.user?.phone) {
+            phone = meData.user.phone;
+          }
+        }
+      } catch {
+        // Fall back to localStorage if /api/me fails
+      }
+
+      if (!phone) {
+        phone = "+91 98765 43210";
+      }
       
       // 1. Fetch current agent ID
       const { data: profile } = await supabase
