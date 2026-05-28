@@ -64,64 +64,61 @@ export default function ClientPipeline() {
   async function loadLeads() {
     setLoading(true);
     try {
-      // Get the authenticated user's phone from the session (server-validated)
-      // to avoid localStorage stale data or format mismatches.
-      let phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+      // Get the authenticated user's ID directly from the session.
+      // This is the profile.id which is the same as agent_id in leads table.
+      let userId: string | null = null;
       try {
         const meRes = await fetch("/api/me");
         if (meRes.ok) {
           const meData = await meRes.json();
-          if (meData.user?.phone) {
-            phone = meData.user.phone;
+          if (meData.user?.id) {
+            userId = meData.user.id;
           }
         }
       } catch {
-        // Fall back to localStorage if /api/me fails
+        // /api/me failed
       }
 
-      if (!phone) {
-        phone = "+91 98765 43210";
+      if (!userId) {
+        console.error("No authenticated user found. Cannot load leads.");
+        setLoading(false);
+        return;
       }
-      
-      // 1. Fetch current agent ID
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("phone", phone)
-        .single();
 
-      if (profile) {
-        setAgentId(profile.id);
+      setAgentId(userId);
 
-        // 2. Fetch leads for this agent
-        const { data: leads, error } = await supabase
-          .from("leads")
-          .select("*")
-          .eq("agent_id", profile.id)
-          .order("created_at", { ascending: false });
+      // Fetch leads for this agent using the profile ID directly
+      const { data: leads, error } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("agent_id", userId)
+        .order("created_at", { ascending: false });
 
-        if (leads) {
-          const mappedClients: Client[] = leads.map((l: any) => {
-            const displayProp = l.details?.propertyType || "Apartment";
-            const interaction = l.details?.lastInteraction || "Lead created";
-            const score = l.details?.aiScore || Math.floor(65 + Math.random() * 30);
+      if (error) {
+        console.error("Error fetching leads:", error);
+      }
 
-            return {
-              id: l.id,
-              name: l.name,
-              phone: l.phone,
-              bhk: l.requirement || "3 BHK",
-              location: l.location || "Kokapet",
-              budget: l.budget || "₹1.50 Cr",
-              date: new Date(l.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-              propertyType: displayProp,
-              aiScore: score,
-              lastInteraction: interaction,
-              stage: STAGE_MAP_DB_TO_UI[l.status] || "New"
-            };
-          });
-          setClients(mappedClients);
-        }
+      if (leads) {
+        const mappedClients: Client[] = leads.map((l: any) => {
+          const displayProp = l.details?.propertyType || "Apartment";
+          const interaction = l.details?.lastInteraction || "Lead created";
+          const score = l.details?.aiScore || Math.floor(65 + Math.random() * 30);
+
+          return {
+            id: l.id,
+            name: l.name,
+            phone: l.phone,
+            bhk: l.requirement || "3 BHK",
+            location: l.location || "Kokapet",
+            budget: l.budget || "₹1.50 Cr",
+            date: new Date(l.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
+            propertyType: displayProp,
+            aiScore: score,
+            lastInteraction: interaction,
+            stage: STAGE_MAP_DB_TO_UI[l.status] || "New"
+          };
+        });
+        setClients(mappedClients);
       }
     } catch (err) {
       console.error("Error loading leads:", err);
