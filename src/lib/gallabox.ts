@@ -133,47 +133,104 @@ export async function sendWhatsAppOTP(
     return sendWhatsAppText(rawPhone, fallbackBody, recipientName);
   }
 
-  try {
-    const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
-      method: "POST",
-      headers: {
-        apiKey: apiKey,
-        apiSecret: apiSecret,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        channelId,
-        channelType: "whatsapp",
-        recipient: { name: recipientName, phone: finalPhone },
-        whatsapp: {
-          type: "template",
-          template: {
-            templateName: templateName,
-            bodyValues: { "1": otp },
-          },
+  // Try multiple payload formats for the authentication template.
+  // GallaBox's API for authentication templates uses a different structure
+  // than regular marketing/utility templates.
+  const payloadFormats = [
+    // Format 1: Authentication template with components array (Meta Cloud API style)
+    {
+      channelId,
+      channelType: "whatsapp",
+      recipient: { name: recipientName, phone: finalPhone },
+      whatsapp: {
+        type: "template",
+        template: {
+          templateName: templateName,
+          bodyValues: { "1": otp },
         },
-      }),
-    });
+      },
+    },
+    // Format 2: Template with language and components (alternative GallaBox format)
+    {
+      channelId,
+      channelType: "whatsapp",
+      recipient: { name: recipientName, phone: finalPhone },
+      whatsapp: {
+        type: "template",
+        template: {
+          templateName: templateName,
+          language: "en",
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: otp }
+              ]
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: 0,
+              parameters: [
+                { type: "text", text: otp }
+              ]
+            }
+          ]
+        },
+      },
+    },
+  ];
 
-    let responseBody: unknown = null;
+  // Try format 1 first
+  for (const payload of payloadFormats) {
     try {
-      responseBody = await res.json();
-    } catch {
-      // empty body
-    }
+      const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
+        method: "POST",
+        headers: {
+          apiKey: apiKey,
+          apiSecret: apiSecret,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    return {
-      ok: res.ok,
-      status: res.status,
-      responseBody,
-      error: res.ok ? undefined : `GallaBox template HTTP ${res.status}`,
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      status: null,
-      responseBody: null,
-      error: err instanceof Error ? err.message : String(err),
-    };
+      let responseBody: unknown = null;
+      try {
+        responseBody = await res.json();
+      } catch {
+        // empty body
+      }
+
+      console.log(`[gallabox] OTP template send (${res.status}):`, JSON.stringify(responseBody));
+
+      if (res.ok) {
+        return {
+          ok: true,
+          status: res.status,
+          responseBody,
+        };
+      }
+
+      // If first format fails with 4xx, try next format
+      if (res.status >= 400 && res.status < 500) {
+        console.warn(`[gallabox] Template format failed (${res.status}), trying next format...`);
+        continue;
+      }
+
+      return {
+        ok: false,
+        status: res.status,
+        responseBody,
+        error: `GallaBox template HTTP ${res.status}`,
+      };
+    } catch (err) {
+      console.error("[gallabox] OTP template fetch error:", err);
+      continue;
+    }
   }
+
+  // All template formats failed — fall back to plain text as last resort
+  console.warn("[gallabox] All template formats failed, falling back to plain text");
+  const fallbackBody = `*AgentsApp* login code: *${otp}*\n\nValid for 10 minutes. Do not share this code with anyone.`;
+  return sendWhatsAppText(rawPhone, fallbackBody, recipientName);
 }
