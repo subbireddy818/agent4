@@ -301,7 +301,7 @@ export default function ProjectDetails() {
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-[10px] text-slate-500 space-y-1.5 font-semibold">
               <div className="font-extrabold text-slate-850 flex items-center">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#25d366] mr-1.5" />
-                <span>Channel Partner Broker Perks:</span>
+                <span>Channel Partner Agent Perks:</span>
               </div>
               <div>· 2.5% Payout on spot booking.</div>
               <div>· CP Meet Invitation pass included.</div>

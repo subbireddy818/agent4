@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s · AgentsApp",
   },
   description:
-    "WhatsApp-first operating system for real estate brokers and builders. Manage leads, search inventory, run campaigns, and onboard channel partners — all from WhatsApp.",
+    "WhatsApp-first operating system for real estate agents and builders. Manage leads, search inventory, run campaigns, and onboard channel partners — all from WhatsApp.",
   applicationName: "AgentsApp",
   authors: [{ name: "AgentsApp" }],
   icons: {

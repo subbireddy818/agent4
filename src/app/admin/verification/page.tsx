@@ -6,9 +6,9 @@ import {
   ArrowRight, ShieldCheck, Eye, Loader2, Award 
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { getVerificationRequests, approveBrokerAction, rejectBrokerAction } from "./actions";
+import { getVerificationRequests, approveAgentAction, rejectAgentAction } from "./actions";
 
-interface BrokerRequest {
+interface AgentRequest {
   id: string;
   name: string;
   agency: string;
@@ -23,10 +23,10 @@ interface BrokerRequest {
 }
 
 export default function VerificationQueue() {
-  const [requests, setRequests] = useState<BrokerRequest[]>([]);
+  const [requests, setRequests] = useState<AgentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"Pending" | "Approved" | "Rejected">("Pending");
-  const [selectedRequest, setSelectedRequest] = useState<BrokerRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<AgentRequest | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [approveSuccessId, setApproveSuccessId] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function VerificationQueue() {
     try {
       const res = await getVerificationRequests();
       if (res.success && res.profiles) {
-        const mapped: BrokerRequest[] = res.profiles.map((p: any) => {
+        const mapped: AgentRequest[] = res.profiles.map((p: any) => {
           // Find referral match
           const matchingRef = res.referrals?.find(r => r.referred_phone === p.phone);
           const referredBy = matchingRef?.profiles ? (matchingRef.profiles as any).cp_id : null;
@@ -57,7 +57,7 @@ export default function VerificationQueue() {
           return {
             id: p.id,
             name: p.name,
-            agency: p.agency_name || "Independent Broker",
+            agency: p.agency_name || "Independent Agent",
             phone: p.phone,
             email: p.email || "No Email",
             rera: p.rera_number || "No RERA Registered",
@@ -89,7 +89,7 @@ export default function VerificationQueue() {
       const currentReq = requests.find(r => r.id === id);
       if (!currentReq) throw new Error("Request not found");
 
-      const res = await approveBrokerAction(id, currentReq.phone, name);
+      const res = await approveAgentAction(id, currentReq.phone, name);
       if (!res.success) {
         throw new Error(res.error || "Approval failed on server");
       }
@@ -124,14 +124,14 @@ export default function VerificationQueue() {
         setApproveSuccessId(null);
       }, 4500);
     } catch (err: any) {
-      alert("Error approving Broker: " + err.message);
+      alert("Error approving Agent: " + err.message);
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenReject = (req: BrokerRequest) => {
+  const handleOpenReject = (req: AgentRequest) => {
     setSelectedRequest(req);
     setShowRejectModal(true);
   };
@@ -142,7 +142,7 @@ export default function VerificationQueue() {
     setLoading(true);
 
     try {
-      const res = await rejectBrokerAction(selectedRequest.id, selectedRequest.phone, rejectReason);
+      const res = await rejectAgentAction(selectedRequest.id, selectedRequest.phone, rejectReason);
       if (!res.success) {
         throw new Error(res.error || "Rejection failed on server");
       }
@@ -157,7 +157,7 @@ export default function VerificationQueue() {
             },
             body: JSON.stringify({
               phone: selectedRequest.phone,
-              text: `❌ *Verification Update:* Your agentsapp broker verification was rejected.\n\n📝 Reason: *${rejectReason}*\n\nPlease log back in and upload the correct documents.`
+              text: `❌ *Verification Update:* Your agentsapp agent verification was rejected.\n\n📝 Reason: *${rejectReason}*\n\nPlease log back in and upload the correct documents.`
             })
           });
         } catch (err) {
@@ -172,7 +172,7 @@ export default function VerificationQueue() {
       // Reload queue
       await loadRequests();
     } catch (err: any) {
-      alert("Error rejecting broker: " + err.message);
+      alert("Error rejecting agent: " + err.message);
       console.error(err);
     } finally {
       setLoading(false);
@@ -184,7 +184,7 @@ export default function VerificationQueue() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">CP Verification Portal</h1>
-        <p className="text-[#64748b] text-xs font-semibold mt-0.5">Approve broker registrations and assign CP ID credentials.</p>
+        <p className="text-[#64748b] text-xs font-semibold mt-0.5">Approve agent registrations and assign CP ID credentials.</p>
       </div>
 
       {/* Tabs */}
@@ -217,7 +217,7 @@ export default function VerificationQueue() {
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left - Broker request cards */}
+        {/* Left - Agent request cards */}
         <div className="lg:col-span-6 space-y-4">
           {filteredRequests.map(req => (
             <div 
@@ -334,8 +334,8 @@ export default function VerificationQueue() {
           ) : (
             <div className="bg-white p-8 rounded-2xl border border-dashed border-slate-250 text-center text-slate-400 shadow-sm">
               <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-slate-400 animate-bounce" />
-              <div className="font-bold text-slate-700">Select a Broker Request</div>
-              <p className="text-xs text-slate-500 mt-1 font-semibold">Select a broker card on the left to verify credentials and documents.</p>
+              <div className="font-bold text-slate-700">Select a Agent Request</div>
+              <p className="text-xs text-slate-500 mt-1 font-semibold">Select a agent card on the left to verify credentials and documents.</p>
             </div>
           )}
         </div>
@@ -345,7 +345,7 @@ export default function VerificationQueue() {
       {approveSuccessId && (
         <div className="fixed bottom-6 right-6 z-50 p-4 bg-white border-2 border-[#25d366] text-[#16c47f] rounded-xl shadow-2xl flex items-center space-x-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-10">
           <Award className="w-5 h-5 text-[#25d366] animate-pulse" />
-          <span>Broker verified successfully! Assigned CP ID: {approveSuccessId}</span>
+          <span>Agent verified successfully! Assigned CP ID: {approveSuccessId}</span>
         </div>
       )}
 
@@ -362,7 +362,7 @@ export default function VerificationQueue() {
 
             <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center space-x-2">
               <ShieldAlert className="w-5 h-5 text-red-500" />
-              <span>Reject Broker Application</span>
+              <span>Reject Agent Application</span>
             </h2>
             <p className="text-xs text-slate-500 mb-6">Explain why the documents were rejected. They will receive this feedback via WhatsApp.</p>
 

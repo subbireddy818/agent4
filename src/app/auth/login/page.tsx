@@ -336,7 +336,7 @@ function LoginContent() {
               onClick={() => { setRole("agent"); setMessage(""); }}
               className={`py-2 rounded-lg transition ${role === "agent" ? "bg-[#25d366] text-white" : "text-slate-500 hover:text-slate-800"}`}
             >
-              Broker / CP
+              Agent / CP
             </button>
             <button
               type="button"
@@ -682,7 +682,7 @@ function LoginContent() {
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-3">Under Ops Review</h2>
             <p className="text-slate-500 text-xs font-semibold leading-relaxed px-2">
-              Your broker registration documents have been uploaded successfully.
+              Your agent registration documents have been uploaded successfully.
             </p>
           </div>
 

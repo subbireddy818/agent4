@@ -379,7 +379,7 @@ async function verifyOtpImpl(input: VerifyOtpInput): Promise<VerifyOtpResult> {
 }
 
 // -----------------------------------------------------------------------------
-// submitKyc — finishes broker onboarding after OTP verification.
+// submitKyc — finishes agent onboarding after OTP verification.
 // -----------------------------------------------------------------------------
 
 export interface SubmitKycInput {

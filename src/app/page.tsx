@@ -97,7 +97,7 @@ function LandingContent() {
           </h1>
 
           <p className="text-[#64748b] text-base md:text-lg max-w-xl leading-relaxed">
-            Manage clients, inventory, webinars, launches, campaigns, and engagement directly through WhatsApp. Realtime distribution infrastructure for builders and brokers.
+            Manage clients, inventory, webinars, launches, campaigns, and engagement directly through WhatsApp. Realtime distribution infrastructure for builders and agents.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-2">
@@ -226,7 +226,7 @@ function LandingContent() {
       <section id="builder-features" className="py-16 px-6 max-w-7xl mx-auto space-y-12">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">Developer Distribution Suite</h2>
-          <p className="text-[#64748b] text-sm mt-2">Circulate inventory and launch campaigns directly into brokers' personal chat threads.</p>
+          <p className="text-[#64748b] text-sm mt-2">Circulate inventory and launch campaigns directly into agents' personal chat threads.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -252,7 +252,7 @@ function LandingContent() {
       <section id="agent-features" className="bg-white py-16 px-6 border-y border-slate-200">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">Brokers: Run Your Business from WhatsApp</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">Agents: Run Your Business from WhatsApp</h2>
             <p className="text-[#64748b] text-sm leading-relaxed">
               No new apps to install or training needed. Simply message the bot to run your client pipeline and check builder projects.
             </p>
@@ -275,7 +275,7 @@ function LandingContent() {
           <div className="bg-[#f8fafc] p-6 rounded-2xl border border-slate-200 shadow-inner space-y-4">
             <div className="text-[10px] uppercase font-bold text-[#64748b] tracking-wider">Example Bot Command Interaction</div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
-              <div className="text-slate-400 font-bold">Broker:</div>
+              <div className="text-slate-400 font-bold">Agent:</div>
               <div className="p-2 bg-[#d9fdd3] rounded-lg rounded-tr-none self-end max-w-fit font-medium">Add new client Ravi Kumar budget 1.8cr Kokapet</div>
               <div className="text-slate-400 font-bold pt-2">agentsapp Bot:</div>
               <div className="p-2 bg-slate-100 rounded-lg rounded-tl-none max-w-fit">✅ Lead Ravi Kumar created in pipeline (Kokapet, Budget: ₹1.80 Cr). Tap below to link match recommendations.</div>
@@ -341,7 +341,7 @@ function LandingContent() {
           <div className="space-y-4">
             <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">CP Launch & Webinar Infrastructure</h2>
             <p className="text-[#64748b] text-sm leading-relaxed">
-              Verify attendance to virtual sessions automatically. Reward participating brokers with voucher coupons or unlocked premium listings access instantly to incentivize action.
+              Verify attendance to virtual sessions automatically. Reward participating agents with voucher coupons or unlocked premium listings access instantly to incentivize action.
             </p>
           </div>
         </div>
@@ -374,8 +374,8 @@ function LandingContent() {
       <section id="rewards" className="bg-white py-16 px-6 border-y border-slate-200">
         <div className="max-w-7xl mx-auto text-center space-y-12">
           <div className="max-w-2xl mx-auto space-y-2">
-            <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">Broker Rewards & Engagement</h2>
-            <p className="text-[#64748b] text-sm">Gamifying broker pipeline activity. Earn rewards points and badges (No cash wallet system).</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">Agent Rewards & Engagement</h2>
+            <p className="text-[#64748b] text-sm">Gamifying agent pipeline activity. Earn rewards points and badges (No cash wallet system).</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -407,7 +407,7 @@ function LandingContent() {
       <section id="pricing" className="py-16 px-6 max-w-7xl mx-auto space-y-12">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-[#0f172a]">Developer Pricing Plans</h2>
-          <p className="text-[#64748b] text-sm mt-2">Transparent package limits and overage usage charges. Zero broker CRM fees.</p>
+          <p className="text-[#64748b] text-sm mt-2">Transparent package limits and overage usage charges. Zero agent CRM fees.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
@@ -466,7 +466,7 @@ function LandingContent() {
         <div className="max-w-2xl mx-auto space-y-6">
           <h2 className="text-3xl font-extrabold text-[#0f172a]">Ready to Supercharge Your Real Estate Distribution?</h2>
           <p className="text-[#64748b] text-sm">
-            Empower your brokers with WhatsApp-first tools and run spam-free direct developer campaigns instantly.
+            Empower your agents with WhatsApp-first tools and run spam-free direct developer campaigns instantly.
           </p>
           <div className="flex justify-center space-x-4">
             <Link href={loginUrl} className="glow-button px-6 py-3 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold text-xs rounded-xl shadow-lg transition">

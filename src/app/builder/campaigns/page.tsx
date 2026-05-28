@@ -51,7 +51,7 @@ export default function CampaignBuilder() {
       <div className="flex items-center justify-between border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Campaign Studio</h1>
-          <p className="text-[#64748b] text-xs font-semibold mt-0.5">Broadcast WhatsApp templates to filterable broker categories.</p>
+          <p className="text-[#64748b] text-xs font-semibold mt-0.5">Broadcast WhatsApp templates to filterable agent categories.</p>
         </div>
       </div>
 
@@ -206,7 +206,7 @@ export default function CampaignBuilder() {
             {sentSuccess && (
               <div className="p-4 bg-brand-green/10 border border-[#25d366]/30 rounded-xl text-[#16c47f] text-xs flex items-center space-x-2 animate-bounce">
                 <Check className="w-4 h-4" />
-                <span>Campaign "{campaignName}" launched successfully to brokers!</span>
+                <span>Campaign "{campaignName}" launched successfully to agents!</span>
               </div>
             )}
 
@@ -214,7 +214,7 @@ export default function CampaignBuilder() {
             <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
               <div>
                 <div className="text-[9px] text-slate-400 uppercase tracking-wider">Estimated Reach</div>
-                <div className="text-sm font-extrabold text-slate-900">2,450 CP Brokers</div>
+                <div className="text-sm font-extrabold text-slate-900">2,450 CP Agents</div>
               </div>
 
               <div className="flex gap-2 text-sm font-bold">

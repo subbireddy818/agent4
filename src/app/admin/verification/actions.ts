@@ -24,11 +24,11 @@ export async function getVerificationRequests() {
   }
 }
 
-export async function approveBrokerAction(id: string, phone: string, name: string) {
+export async function approveAgentAction(id: string, phone: string, name: string) {
   try {
     const generatedId = `CP-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // 1. Update Broker status in profiles to approved and assign CP ID
+    // 1. Update Agent status in profiles to approved and assign CP ID
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
@@ -77,14 +77,14 @@ export async function approveBrokerAction(id: string, phone: string, name: strin
 
     return { success: true, generatedId };
   } catch (err: any) {
-    console.error("Error in approveBrokerAction server action:", err);
+    console.error("Error in approveAgentAction server action:", err);
     return { success: false, error: err.message };
   }
 }
 
-export async function rejectBrokerAction(id: string, phone: string, reason: string) {
+export async function rejectAgentAction(id: string, phone: string, reason: string) {
   try {
-    // 1. Update Broker status to rejected in profiles
+    // 1. Update Agent status to rejected in profiles
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
@@ -103,7 +103,7 @@ export async function rejectBrokerAction(id: string, phone: string, reason: stri
 
     return { success: true };
   } catch (err: any) {
-    console.error("Error in rejectBrokerAction server action:", err);
+    console.error("Error in rejectAgentAction server action:", err);
     return { success: false, error: err.message };
   }
 }

@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
-  ShieldAlert, Users, Building, MessageSquare, 
-  Clock, CheckCircle2, ChevronRight, Loader2,
-  UserCheck, Briefcase, RefreshCw
+  ShieldAlert, Users, Building, 
+  Clock, CheckCircle2, Loader2,
+  Briefcase, RefreshCw, X, ChevronRight, MapPin, Phone
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -16,6 +16,8 @@ interface Profile {
   phone: string;
   role: string;
   status: string;
+  location: string;
+  points: number;
   created_at: string;
 }
 
@@ -38,12 +40,15 @@ export default function AdminDashboard() {
   const [builders, setBuilders] = useState<Profile[]>([]);
   const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [totalMessages, setTotalMessages] = useState(0);
+
+  // Agent detail view
+  const [selectedAgent, setSelectedAgent] = useState<Profile | null>(null);
+  const [agentLeads, setAgentLeads] = useState<Lead[]>([]);
+  const [loadingAgentLeads, setLoadingAgentLeads] = useState(false);
 
   async function loadData() {
     setLoading(true);
     try {
-      // Fetch all profiles
       const { data: profiles } = await supabase
         .from("profiles")
         .select("*")
@@ -55,7 +60,6 @@ export default function AdminDashboard() {
         setPendingProfiles(profiles.filter((p: Profile) => p.status === "pending"));
       }
 
-      // Fetch all leads with agent info
       const { data: leadsData } = await supabase
         .from("leads")
         .select("*, profiles!leads_agent_id_fkey(name)")
@@ -68,17 +72,28 @@ export default function AdminDashboard() {
         }));
         setLeads(mappedLeads);
       }
-
-      // Fetch message count
-      const { count } = await supabase
-        .from("whatsapp_messages")
-        .select("id", { count: "exact", head: true });
-
-      setTotalMessages(count || 0);
     } catch (err) {
       console.error("Error loading admin data:", err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function viewAgentLeads(agent: Profile) {
+    setSelectedAgent(agent);
+    setLoadingAgentLeads(true);
+    try {
+      const { data: agentLeadsData } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("agent_id", agent.id)
+        .order("created_at", { ascending: false });
+
+      setAgentLeads(agentLeadsData || []);
+    } catch (err) {
+      console.error("Error loading agent leads:", err);
+    } finally {
+      setLoadingAgentLeads(false);
     }
   }
 
@@ -102,7 +117,7 @@ export default function AdminDashboard() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Admin Console</h1>
-          <p className="text-[#64748b] text-xs font-semibold mt-0.5">Live platform data from Supabase — agents, leads, and verifications.</p>
+          <p className="text-[#64748b] text-xs font-semibold mt-0.5">Live platform data — agents, leads, and verifications.</p>
         </div>
         <div className="flex items-center space-x-3 shrink-0">
           <button
@@ -122,7 +137,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
           <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
@@ -130,65 +144,51 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Metrics Row — LIVE from Supabase */}
+      {/* Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-2xl font-extrabold text-slate-900">{agents.length}</div>
             <div className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Registered Agents</div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Users className="w-5 h-5" />
-          </div>
+          <Users className="w-5 h-5 text-emerald-600" />
         </div>
-
         <div className="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-2xl font-extrabold text-slate-900">{builders.length}</div>
             <div className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Builders</div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Building className="w-5 h-5" />
-          </div>
+          <Building className="w-5 h-5 text-emerald-600" />
         </div>
-
         <div className="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-2xl font-extrabold text-slate-900">{leads.length}</div>
             <div className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Total Leads</div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
-            <Briefcase className="w-5 h-5" />
-          </div>
+          <Briefcase className="w-5 h-5 text-blue-500" />
         </div>
-
         <div className="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <div className="text-2xl font-extrabold text-slate-900">{pendingProfiles.length}</div>
             <div className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Pending Verification</div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
-            <ShieldAlert className="w-5 h-5" />
-          </div>
+          <ShieldAlert className="w-5 h-5 text-red-500" />
         </div>
       </div>
 
-      {/* Main split */}
+      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left — All Leads (from all agents) */}
+        {/* Left — All Leads */}
         <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              All Platform Leads ({leads.length})
-            </h3>
-          </div>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+            All Platform Leads ({leads.length})
+          </h3>
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
             {leads.length === 0 && !loading && (
-              <div className="text-center text-slate-400 text-xs py-8">No leads in the database yet.</div>
+              <div className="text-center text-slate-400 text-xs py-8">No leads yet.</div>
             )}
-            {leads.slice(0, 20).map((lead) => (
+            {leads.map((lead) => (
               <div key={lead.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition text-xs font-semibold">
                 <div className="flex justify-between items-start">
                   <div>
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
                       {lead.phone} · {lead.location || "N/A"} · {lead.requirement || "N/A"}
                     </div>
                     <div className="text-[10px] text-slate-400 mt-1">
-                      Agent: <span className="text-slate-600 font-bold">{lead.agent_name}</span>
+                      Added by: <span className="text-emerald-600 font-bold">{lead.agent_name}</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -212,59 +212,144 @@ export default function AdminDashboard() {
                       {lead.status?.toUpperCase()}
                     </span>
                     <div className="text-[9px] text-slate-400 mt-1">{timeAgo(lead.created_at)}</div>
+                    {lead.budget && <div className="text-[9px] text-slate-500 mt-0.5">{lead.budget}</div>}
                   </div>
                 </div>
-                {lead.budget && (
-                  <div className="mt-2 text-[10px] text-slate-500">
-                    Budget: <span className="font-bold text-slate-700">{lead.budget}</span>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right — Registered Agents */}
-        <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Registered Agents ({agents.length})
+        {/* Right — Agents List (clickable) */}
+        <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+            Agents ({agents.length}) — Click to view leads
           </h3>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
             {agents.length === 0 && !loading && (
               <div className="text-center text-slate-400 text-xs py-8">No agents registered yet.</div>
             )}
-            {agents.map((agent) => (
-              <div key={agent.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-semibold">
-                <div>
-                  <div className="font-extrabold text-slate-900">{agent.name}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">
-                    {agent.agency_name || "Independent"} · {agent.phone}
+            {agents.map((agent) => {
+              const agentLeadCount = leads.filter(l => l.agent_id === agent.id).length;
+              return (
+                <button
+                  key={agent.id}
+                  onClick={() => viewAgentLeads(agent)}
+                  className="w-full text-left p-3.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition text-xs font-semibold group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-extrabold text-slate-900">{agent.name}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {agent.agency_name || "Independent"} · {agent.phone}
+                      </div>
+                    </div>
+                    <div className="text-right flex items-center space-x-2">
+                      <div>
+                        <div className="text-[9px] text-slate-400">Leads</div>
+                        <div className="font-extrabold text-slate-900">{agentLeadCount}</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition" />
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className={`font-extrabold flex items-center space-x-1 justify-end ${
-                    agent.status === "approved" ? "text-[#16c47f]" : "text-amber-500"
-                  }`}>
-                    {agent.status === "approved" ? (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                        <span>Approved</span>
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-3.5 h-3.5 shrink-0" />
-                        <span>Pending</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="text-[9px] text-slate-400 mt-0.5">{timeAgo(agent.created_at)}</div>
-                </div>
-              </div>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* Agent Detail Modal — shows when you click on an agent */}
+      {selectedAgent && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-200 flex justify-between items-start">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">{selectedAgent.name}</h2>
+                <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                  <div className="flex items-center space-x-1">
+                    <Phone className="w-3 h-3" />
+                    <span>{selectedAgent.phone}</span>
+                  </div>
+                  <div>{selectedAgent.agency_name || "Independent Agent"}</div>
+                  {selectedAgent.location && (
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{selectedAgent.location}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center space-x-2">
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                    selectedAgent.status === "approved" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                  }`}>
+                    {selectedAgent.status === "approved" ? "Approved" : "Pending"}
+                  </span>
+                  {selectedAgent.points > 0 && (
+                    <span className="text-[9px] font-bold text-indigo-500">{selectedAgent.points} XP</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAgent(null)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Modal Body — Agent's Leads */}
+            <div className="p-6 max-h-[400px] overflow-y-auto">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+                Leads added by {selectedAgent.name} ({agentLeads.length})
+              </h3>
+
+              {loadingAgentLeads && (
+                <div className="flex items-center space-x-2 text-xs text-slate-400 py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading leads...</span>
+                </div>
+              )}
+
+              {!loadingAgentLeads && agentLeads.length === 0 && (
+                <div className="text-center text-slate-400 text-xs py-8">This agent has not added any leads yet.</div>
+              )}
+
+              <div className="space-y-3">
+                {agentLeads.map((lead) => (
+                  <div key={lead.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-extrabold text-slate-900">{lead.name}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          {lead.phone} · {lead.location || "N/A"}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Requirement: {lead.requirement || "N/A"} · Budget: {lead.budget || "N/A"}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          lead.status === "new" ? "bg-slate-100 text-slate-600" :
+                          lead.status === "interested" ? "bg-indigo-50 text-indigo-600" :
+                          lead.status === "site_visit" ? "bg-purple-50 text-purple-600" :
+                          lead.status === "negotiation" ? "bg-amber-50 text-amber-600" :
+                          lead.status === "closed" ? "bg-emerald-50 text-emerald-600" :
+                          "bg-red-50 text-red-600"
+                        }`}>
+                          {lead.status?.toUpperCase()}
+                        </span>
+                        <div className="text-[9px] text-slate-400 mt-1">{timeAgo(lead.created_at)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

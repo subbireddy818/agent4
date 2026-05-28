@@ -27,7 +27,7 @@ export interface GallaBoxSendResult {
 export async function sendWhatsAppText(
   rawPhone: string,
   body: string,
-  recipientName: string = "Broker"
+  recipientName: string = "Agent"
 ): Promise<GallaBoxSendResult> {
   const apiKey = process.env.GALLABOX_API_KEY;
   const apiSecret = process.env.GALLABOX_API_SECRET;

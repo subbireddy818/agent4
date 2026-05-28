@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse("Bad Request", { status: 400 });
 }
 
-// POST handler: Receives incoming chat prompts from brokers (Meta, GallaBox, or Simulator)
+// POST handler: Receives incoming chat prompts from agents (Meta, GallaBox, or Simulator)
 export async function POST(req: NextRequest) {
   let fromPhoneRaw = "";
   // Read the raw body once, so we can both verify the signature and parse it.
@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             channelId: channelId,
             channelType: "whatsapp",
-            recipient: { name: "Broker", phone: finalPhone },
+            recipient: { name: "Agent", phone: finalPhone },
             whatsapp: { type: "text", text: { body: replyText } },
           }),
         });
@@ -294,7 +294,7 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    // Query profiles in database to identify the broker
+    // Query profiles in database to identify the agent
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
@@ -334,7 +334,7 @@ export async function POST(req: NextRequest) {
             .single();
 
           if (error) {
-            console.error("Failed to register broker via WhatsApp:", error);
+            console.error("Failed to register agent via WhatsApp:", error);
             const replyErr = `🤖 Bot: ❌ Failed to register: ${error.message}`;
             await sendOutboundReply(replyErr);
             return NextResponse.json({ status: "error", reply: replyErr });
@@ -367,13 +367,13 @@ export async function POST(req: NextRequest) {
           `1. 🚀 *Upcoming Launches*:\n` +
           `   _"aa launches"_ — view all scheduled launches\n\n` +
           `2. 🎥 *Register Webinar*:\n` +
-          `   _"aa webinars"_ — view/register broker webinars\n\n` +
+          `   _"aa webinars"_ — view/register agent webinars\n\n` +
           `3. 👥 *My Agents*:\n` +
           `   _"aa my agents"_ — list registered channel partners\n\n` +
           `4. 🏢 *Search Inventory*:\n` +
           `   _"aa inventory"_ — view your project units\n\n` +
           `5. 📁 *Brochures*:\n` +
-          `   _"aa brochure [project]"_ — send brochure to brokers\n\n` +
+          `   _"aa brochure [project]"_ — send brochure to agents\n\n` +
           `6. 📊 *Campaign Stats*:\n` +
           `   _"aa stats"_ — view campaign analytics\n\n` +
           `👉 Prefix all commands with *aa*`;
@@ -397,7 +397,7 @@ export async function POST(req: NextRequest) {
           `10. _"aa webinars"_ — active webinars\n\n` +
           `👉 Prefix all commands with *aa*`;
       } else {
-        // Default: Agent/Broker menu
+        // Default: Agent/Agent menu
         helpMsg = `🤖 *AgentsApp Agent Menu*\n\n` +
           `👋 Welcome *${profile.name}* (${profile.agency_name || "Agent"})!\n` +
           `🆔 CP ID: *${profile.cp_id || "Pending"}*\n\n` +
@@ -711,7 +711,7 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       if (!webinars || webinars.length === 0) {
-        const replyEmpty = "🤖 Bot: No active broker webinars scheduled. Check back later!";
+        const replyEmpty = "🤖 Bot: No active agent webinars scheduled. Check back later!";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
@@ -723,7 +723,7 @@ export async function POST(req: NextRequest) {
         await sendOutboundReply(replyOk);
         return NextResponse.json({ status: "success", reply: replyOk });
       } else {
-        let replyMsg = `🎥 *Active Broker Webinars*:\n\n`;
+        let replyMsg = `🎥 *Active Agent Webinars*:\n\n`;
         webinars.forEach((w, idx) => {
           replyMsg += `${idx + 1}. 📺 *${w.title}*\n   📅 Time: *${w.scheduled_time}*\n   🎁 Reward: *${w.reward || "N/A"}*\n   📝 Info: ${w.details || "N/A"}\n\n`;
         });
@@ -979,7 +979,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             channelId,
             channelType: "whatsapp",
-            recipient: { name: "Broker", phone: finalPhone },
+            recipient: { name: "Agent", phone: finalPhone },
             whatsapp: { type: "text", text: { body: replyErr } }
           })
         });
