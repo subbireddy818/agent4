@@ -259,6 +259,45 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Builders Section */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center space-x-1.5">
+          <Building className="w-4 h-4 text-indigo-500" />
+          <span>Builders ({builders.length})</span>
+        </h3>
+        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          {builders.length === 0 && !loading && (
+            <div className="text-center text-slate-400 text-xs py-8">No builders registered yet.</div>
+          )}
+          {builders.map((builder) => (
+            <div key={builder.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-200 transition text-xs font-semibold">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="font-extrabold text-slate-900">{builder.name}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    {builder.agency_name || "Builder"} · {builder.phone}
+                  </div>
+                  {builder.location && (
+                    <div className="text-[10px] text-slate-400 mt-0.5 flex items-center space-x-1">
+                      <MapPin className="w-2.5 h-2.5" />
+                      <span>{builder.location}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                    builder.status === "approved" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                  }`}>
+                    {builder.status === "approved" ? "Approved" : "Pending"}
+                  </span>
+                  <div className="text-[9px] text-slate-400 mt-1">{timeAgo(builder.created_at)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Agent Detail Modal — shows when you click on an agent */}
       {selectedAgent && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
