@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Building2, Users, Megaphone, CalendarCheck, 
   BarChart3, TrendingUp, HelpCircle,
-  Loader2, RefreshCw, UserCheck, Briefcase, MapPin, Phone
+  Loader2, RefreshCw, UserCheck, Briefcase, MapPin
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -211,10 +211,6 @@ export default function BuilderDashboard() {
                       </span>
                     </>
                   )}
-                </div>
-                <div className="text-[10px] text-slate-400 mt-1 flex items-center space-x-1">
-                  <Phone className="w-2.5 h-2.5" />
-                  <span>{agent.phone}</span>
                 </div>
               </div>
               <div className="text-right">
