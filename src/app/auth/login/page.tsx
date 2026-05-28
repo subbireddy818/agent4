@@ -52,6 +52,36 @@ function LoginContent() {
   }, [searchParams]);
 
   // ---------------------------------------------------------------------------
+  // Auto-redirect if already authenticated (session cookie present).
+  // If logged in on another tab and user opens /auth/login, send them to dashboard.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    let cancelled = false;
+    async function checkSession() {
+      try {
+        const res = await fetch("/api/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.user && !cancelled) {
+          const dashboard =
+            data.user.role === "builder"
+              ? "/builder/dashboard"
+              : data.user.role === "admin" ||
+                data.user.role === "verification" ||
+                data.user.role === "operations"
+              ? "/admin/dashboard"
+              : "/agent/dashboard";
+          window.location.assign(dashboard);
+        }
+      } catch {
+        // Network error — just show login normally.
+      }
+    }
+    checkSession();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // STEP 1 → STEP 2  (request OTP)
   // ---------------------------------------------------------------------------
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -130,6 +160,8 @@ function LoginContent() {
           localStorage.setItem("agentsapp_logged_in_phone", result.user.phone);
           localStorage.setItem("agentsapp_logged_in_user", result.user.name);
           localStorage.setItem("agentsapp_logged_in_role", result.user.role);
+          // Session sentinel for cross-tab sync
+          localStorage.setItem("agentsapp_session_active", "1");
         } catch {
           /* private mode — ignore */
         }

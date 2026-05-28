@@ -6,6 +6,7 @@ import {
   Home, Users, Briefcase, FileText, Bell, 
   Settings, LogOut, RefreshCw, Milestone, Award
 } from "lucide-react";
+import { performLogout } from "@/components/SessionSync";
 
 export default function AgentSidebar() {
   const pathname = usePathname();
@@ -80,10 +81,13 @@ export default function AgentSidebar() {
         </div>
 
         <div className="border-t border-slate-200 pt-3">
-          <Link href="/" className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 transition">
+          <button
+            onClick={() => performLogout()}
+            className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 transition w-full text-left"
+          >
             <LogOut className="w-4 h-4 shrink-0" />
             <span>Logout</span>
-          </Link>
+          </button>
         </div>
       </div>
     </div>

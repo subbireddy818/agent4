@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import AgentSidebar from "@/components/AgentSidebar";
 import AgentBottomNav from "@/components/AgentBottomNav";
+import SessionSync from "@/components/SessionSync";
 
 export default function AgentLayout({
   children,
@@ -80,6 +81,7 @@ export default function AgentLayout({
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden text-slate-800">
+      <SessionSync />
       {/* Desktop Sidebar navigation - hidden on mobile view */}
       <div className="hidden lg:block shrink-0">
         <AgentSidebar />
