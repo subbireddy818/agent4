@@ -265,6 +265,7 @@ export type VerifyOtpResult =
       user: { id: string; phone: string; role: string; name: string };
     }
   | { ok: true; status: "needs_kyc"; phone: string }
+  | { ok: true; status: "needs_profile_setup"; phone: string; role: string }
   | { ok: false; error: string };
 
 export async function verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResult> {
@@ -362,53 +363,16 @@ async function verifyOtpImpl(input: VerifyOtpInput): Promise<VerifyOtpResult> {
     };
   }
 
-  // No profile yet. For agents, gate behind KYC. For builders/admins, auto-
-  // create a placeholder so the demo continues working.
+  // No profile yet — require profile setup for ALL roles.
+  // Agent goes to KYC flow, Builder/Admin goes to profile setup.
   const intendedRole: Role = (session.intended_role as Role) || "agent";
 
   if (intendedRole === "agent") {
     return { ok: true, status: "needs_kyc", phone };
   }
 
-  // Builder/admin demo auto-create.
-  const placeholderName = intendedRole === "builder" ? "Prestige Group" : "Ops Admin";
-  const { data: newProfile, error: insErr } = await supabaseAdmin
-    .from("profiles")
-    .insert([
-      {
-        phone,
-        role: intendedRole,
-        name: placeholderName,
-        status: "approved",
-        points: 0,
-        referrals_count: 0,
-      },
-    ])
-    .select()
-    .single();
-
-  if (insErr || !newProfile) {
-    console.error("verifyOtp: builder/admin auto-create failed", insErr);
-    return { ok: false, error: "Could not create profile. Please contact support." };
-  }
-
-  await setSessionCookie({
-    sub: newProfile.id,
-    phone: newProfile.phone,
-    role: newProfile.role,
-    name: newProfile.name,
-  });
-  return {
-    ok: true,
-    status: "logged_in",
-    redirect: dashboardForRole(newProfile.role),
-    user: {
-      id: newProfile.id,
-      phone: newProfile.phone,
-      role: newProfile.role,
-      name: newProfile.name,
-    },
-  };
+  // Builder/Admin: require name, company, location before creating profile
+  return { ok: true, status: "needs_profile_setup", phone, role: intendedRole };
 }
 
 // -----------------------------------------------------------------------------
@@ -544,6 +508,93 @@ async function submitKycImpl(input: SubmitKycInput): Promise<SubmitKycResult> {
   });
 
   return { ok: true, redirect: dashboardForRole(newProfile.role) };
+}
+
+// -----------------------------------------------------------------------------
+// createProfile — for builder/admin after OTP verification.
+// Collects real name, company, location instead of using placeholder values.
+// -----------------------------------------------------------------------------
+
+export interface CreateProfileInput {
+  phone: string;
+  role: "builder" | "admin";
+  name: string;
+  companyName: string;
+  location: string;
+}
+
+export type CreateProfileResult =
+  | { ok: true; redirect: string }
+  | { ok: false; error: string };
+
+export async function createProfile(input: CreateProfileInput): Promise<CreateProfileResult> {
+  try {
+    const phone = formatPhone(input.phone);
+    if (!phone) return { ok: false, error: "Invalid phone number." };
+
+    if (!input.name?.trim() || !input.companyName?.trim()) {
+      return { ok: false, error: "Name and company name are required." };
+    }
+
+    // Verify OTP was used recently
+    const sinceIso = new Date(Date.now() - KYC_GRACE_MS).toISOString();
+    const { data: usedRows } = await supabaseAdmin
+      .from("otp_sessions")
+      .select("id, used_at")
+      .eq("phone", phone)
+      .eq("is_used", true)
+      .gte("used_at", sinceIso)
+      .order("used_at", { ascending: false })
+      .limit(1);
+
+    if (!usedRows || usedRows.length === 0) {
+      return { ok: false, error: "OTP session expired. Please verify your phone again." };
+    }
+
+    // Don't allow duplicate profiles.
+    const { data: existing } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (existing) {
+      return { ok: false, error: "A profile already exists for this phone. Please log in." };
+    }
+
+    const { data: newProfile, error: profileErr } = await supabaseAdmin
+      .from("profiles")
+      .insert([
+        {
+          phone,
+          role: input.role,
+          name: input.name.trim(),
+          agency_name: input.companyName.trim(),
+          location: input.location?.trim() || "India",
+          status: "approved",
+          points: 0,
+          referrals_count: 0,
+        },
+      ])
+      .select()
+      .single();
+
+    if (profileErr || !newProfile) {
+      return { ok: false, error: profileErr?.message || "Failed to create profile." };
+    }
+
+    await setSessionCookie({
+      sub: newProfile.id,
+      phone: newProfile.phone,
+      role: newProfile.role,
+      name: newProfile.name,
+    });
+
+    return { ok: true, redirect: dashboardForRole(newProfile.role) };
+  } catch (err) {
+    console.error("createProfile threw:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
 }
 
 // -----------------------------------------------------------------------------

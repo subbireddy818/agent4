@@ -8,7 +8,7 @@ import {
   CheckCircle2, Loader2, KeyRound, Sparkles,
   MessageSquare, Upload, Clock, UserCheck,
 } from "lucide-react";
-import { requestOtp, verifyOtp, submitKyc } from "@/app/auth/actions";
+import { requestOtp, verifyOtp, submitKyc, createProfile } from "@/app/auth/actions";
 
 function LoginContent() {
   const router = useRouter();
@@ -37,6 +37,11 @@ function LoginContent() {
   const [idUploaded, setIdUploaded] = useState(false);
   const [waVerified, setWaVerified] = useState(false);
   const [waVerifying, setWaVerifying] = useState(false);
+
+  // Builder/Admin profile setup (step 6)
+  const [profileName, setProfileName] = useState("");
+  const [profileCompany, setProfileCompany] = useState("");
+  const [profileLocation, setProfileLocation] = useState("");
 
   useEffect(() => {
     const queryRole = searchParams.get("role");
@@ -142,6 +147,11 @@ function LoginContent() {
         return;
       }
 
+      if (result.status === "needs_profile_setup") {
+        setStep(6);
+        return;
+      }
+
       // Defensive: server returned something we don't recognise.
       // Surface it instead of silently sitting on the same page.
       setMessage(
@@ -200,6 +210,47 @@ function LoginContent() {
       setMessage(
         err instanceof Error ? err.message : "Failed to submit KYC. Please try again."
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // STEP 6 → Builder/Admin profile setup
+  // ---------------------------------------------------------------------------
+  const handleProfileSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage("");
+
+    if (!profileName || !profileCompany) {
+      setMessage("Please fill in your name and company/organization name.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await createProfile({
+        phone,
+        role: role as "builder" | "admin",
+        name: profileName,
+        companyName: profileCompany,
+        location: profileLocation || "India",
+      });
+
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+
+      try {
+        localStorage.setItem("agentsapp_logged_in_phone", `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`);
+        localStorage.setItem("agentsapp_logged_in_user", profileName);
+        localStorage.setItem("agentsapp_logged_in_role", role);
+      } catch { /* ignore */ }
+
+      window.location.assign(result.redirect);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -632,6 +683,89 @@ function LoginContent() {
             <UserCheck className="w-4 h-4 shrink-0" />
             <span>Enter App Dashboard</span>
           </button>
+        </div>
+      )}
+
+      {/* STEP 6 — Builder/Admin Profile Setup */}
+      {step === 6 && (
+        <div className="space-y-6">
+          <div className="text-center">
+            <span className="text-[10px] bg-slate-100 text-slate-500 font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
+              Complete Your Profile
+            </span>
+            <h2 className="text-xl font-extrabold text-slate-900 mt-3 mb-1">
+              {role === "builder" ? "Builder Profile" : "Admin Profile"}
+            </h2>
+            <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+              Tell us about yourself so your team and partners can identify you.
+            </p>
+          </div>
+
+          <form onSubmit={handleProfileSetup} className="space-y-4 text-xs font-semibold text-slate-400">
+            <div className="space-y-1">
+              <label className="block uppercase text-[9px] font-bold tracking-wider">
+                {role === "builder" ? "Your Full Name" : "Admin Name"}
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={role === "builder" ? "e.g. Rajesh Kumar" : "e.g. Ops Admin"}
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3.5 text-slate-800 outline-none text-xs font-semibold transition"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block uppercase text-[9px] font-bold tracking-wider">
+                {role === "builder" ? "Company / Developer Name" : "Organization Name"}
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={role === "builder" ? "e.g. Prestige Constructions" : "e.g. AgentsApp Operations"}
+                value={profileCompany}
+                onChange={(e) => setProfileCompany(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3.5 text-slate-800 outline-none text-xs font-semibold transition"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block uppercase text-[9px] font-bold tracking-wider">Location / City</label>
+              <input
+                type="text"
+                placeholder="e.g. Hyderabad"
+                value={profileLocation}
+                onChange={(e) => setProfileLocation(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3.5 text-slate-800 outline-none text-xs font-semibold transition"
+              />
+            </div>
+
+            {message && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center space-x-2 font-bold">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md transition flex items-center justify-center space-x-2 disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Creating Profile…</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-4 h-4" />
+                  <span>Complete Setup & Enter Dashboard</span>
+                </>
+              )}
+            </button>
+          </form>
         </div>
       )}
     </div>
