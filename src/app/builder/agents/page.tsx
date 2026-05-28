@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { 
   Users, Search, MapPin, Building2, 
-  Trophy, Phone, Loader2, UserCheck
+  Trophy, Loader2, UserCheck
 } from "lucide-react";
 import { getVerificationRequests } from "@/app/admin/verification/actions";
 
@@ -133,10 +133,7 @@ export default function AgentDirectory() {
                     <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>{agent.agency_name}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>{agent.phone}</span>
-                  </div>
+
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>{agent.location}</span>
