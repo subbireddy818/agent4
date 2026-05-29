@@ -64,9 +64,8 @@ export default function NewProject() {
         <p className="text-[#64748b] text-xs font-semibold mt-0.5">Define project configuration templates and upload Excel spreadsheets.</p>
       </div>
 
-      {step === 1 ? (
-        /* Form & Upload Area */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Form & Upload Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
               <Building className="w-4 h-4 text-indigo-500" />
