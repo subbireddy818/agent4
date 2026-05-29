@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { 
   Megaphone, Smartphone, HelpCircle, FileText, 
-  Plus, Check, Sparkles, Send, AlertTriangle 
+  Plus, Check, Sparkles, Send, AlertTriangle, Calendar, MapPin 
 } from "lucide-react";
 import Link from "next/link";
+import { launchCampaignAction } from "./actions";
 
 export default function CampaignBuilder() {
   const [campaignName, setCampaignName] = useState("Skyline Heights Launch");
@@ -13,6 +14,8 @@ export default function CampaignBuilder() {
   const [message, setMessage] = useState(
     "Dear Partner,\n\nJoin us for the exclusive launch of Skyline Heights on 30th May at 11:00 AM at Kokapet, Hyderabad.\n\nExciting offers and high commission structures await you!\n\nLimited seats, RSVP now."
   );
+  const [eventDate, setEventDate] = useState("30th May 2026, 11:00 AM");
+  const [eventLocation, setEventLocation] = useState("Kokapet, Hyderabad");
   const [attachedFile, setAttachedFile] = useState("Skyline_Heights_Brochure.pdf");
   const [newFilter, setNewFilter] = useState("");
   const [sending, setSending] = useState(false);
@@ -34,15 +37,32 @@ export default function CampaignBuilder() {
     setFilters(filters.filter((_, i) => i !== index));
   };
 
-  const handleLaunchCampaign = () => {
+  const handleLaunchCampaign = async () => {
     setSending(true);
-    setTimeout(() => {
-      setSending(false);
+    
+    const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+    const audienceStr = `${cityFilter} - ${filters.join(", ")}`;
+
+    const res = await launchCampaignAction(
+      phone,
+      campaignName,
+      audienceStr,
+      "Rich Media",
+      eventDate,
+      eventLocation,
+      message
+    );
+
+    setSending(false);
+    
+    if (res.ok) {
       setSentSuccess(true);
       setTimeout(() => {
         setSentSuccess(false);
       }, 5000);
-    }, 2000);
+    } else {
+      alert("Failed to launch campaign: " + res.error);
+    }
   };
 
   return (
@@ -162,6 +182,40 @@ export default function CampaignBuilder() {
                 >
                   Add Filter
                 </button>
+              </div>
+            </div>
+
+            {/* Event Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block uppercase tracking-wider text-[10px]">Event Date & Time</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <input 
+                    type="text" 
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    placeholder="e.g. 30th May, 11:00 AM"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 pl-9 pr-3 text-slate-800 outline-none text-sm font-medium transition"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block uppercase tracking-wider text-[10px]">Event Location</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <MapPin className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <input 
+                    type="text" 
+                    value={eventLocation}
+                    onChange={(e) => setEventLocation(e.target.value)}
+                    placeholder="e.g. Kokapet, Hyderabad"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 pl-9 pr-3 text-slate-800 outline-none text-sm font-medium transition"
+                  />
+                </div>
               </div>
             </div>
 
