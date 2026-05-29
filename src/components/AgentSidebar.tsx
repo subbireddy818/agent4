@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Home, Users, Briefcase, FileText, Bell, 
-  Settings, LogOut, RefreshCw, Milestone, Award
+  Settings, LogOut, RefreshCw, Milestone, Award, Bookmark
 } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
@@ -16,6 +16,7 @@ export default function AgentSidebar() {
     { name: "Leads", href: "/agent/pipeline", icon: Users },
     { name: "Inventory", href: "/agent/inventory", icon: Briefcase },
     { name: "Launches", href: "/agent/launches", icon: Milestone },
+    { name: "Following Projects", href: "/agent/following", icon: Bookmark },
     { name: "Documents", href: "/agent/documents", icon: FileText },
     { name: "Reminders", href: "/agent/reminders", icon: Bell },
     { name: "Rewards", href: "/agent/rewards", icon: Award },
