@@ -91,11 +91,12 @@ export async function saveProjectAction(
         Promise.all(agents.map(async (agent) => {
             try {
                 // In a real env, use process.env.NEXT_PUBLIC_BASE_URL
-                // Since this runs on server, we hardcode the Vercel app path or a relative hint
-                const followUrl = `https://agent4.vercel.app/agent/follow?project_id=${project.id}`;
+                // We hardcode the Vercel app path to fix the relative fetch issue on server
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agent4-ochre.vercel.app";
+                const followUrl = `${baseUrl}/agent/follow?project_id=${project.id}`;
                 const text = `🚀 *New Project Launched!*\n\n${name} in ${location} is now live on the platform.\nStarting at ${priceEstimate}.\n\nClick here to follow this project and get updates:\n${followUrl}`;
                 
-                await fetch(process.env.NEXT_PUBLIC_BASE_URL + "/api/whatsapp/send", {
+                await fetch(`${baseUrl}/api/whatsapp/send`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ phone: agent.phone, text })

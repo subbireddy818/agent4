@@ -27,6 +27,8 @@ export default function LaunchesPage() {
           e.id === eventId ? { ...e, invitation_status: response } : e
         )
       );
+    } else {
+      alert("Error: " + result.error);
     }
     setRespondingId(null);
   };

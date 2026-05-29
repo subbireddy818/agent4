@@ -12,11 +12,12 @@ export async function getFollowedProjects(phone: string) {
 
     if (!profile) return [];
 
-    // Get all accepted RSVPs for this agent
+    // Get all accepted invitations for this agent
     const { data: rsvps } = await supabaseAdmin
-      .from("rsvps")
+      .from("event_invitations")
       .select("event_id")
-      .eq("agent_id", profile.id);
+      .eq("agent_id", profile.id)
+      .eq("status", "accepted");
 
     if (!rsvps || rsvps.length === 0) return [];
 
