@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   User, ShieldCheck, 
   CheckCircle2, Award, Loader2
@@ -38,6 +38,18 @@ export default function AgentProfile() {
     loadProfile();
   }, []);
 
+  // Track if anything changed from the loaded profile
+  const hasChanges = useMemo(() => {
+    if (!profile) return false;
+    return (
+      name !== (profile.name || "") ||
+      agency !== (profile.agency_name || "") ||
+      email !== (profile.email || "") ||
+      rera !== (profile.rera_number || "") ||
+      location !== (profile.location || "")
+    );
+  }, [name, agency, email, rera, location, profile]);
+
   async function loadProfile() {
     setLoading(true);
     try {
@@ -68,6 +80,7 @@ export default function AgentProfile() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasChanges) return;
     setSaving(true);
     setMessage("");
     setError("");
@@ -206,8 +219,8 @@ export default function AgentProfile() {
             <div className="pt-2 flex justify-end">
               <button 
                 type="submit"
-                disabled={saving}
-                className="px-5 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl shadow-md transition disabled:opacity-60"
+                disabled={saving || !hasChanges}
+                className={`px-5 py-2.5 font-bold rounded-xl shadow-md transition text-white ${hasChanges ? "bg-[#25d366] hover:bg-[#16c47f]" : "bg-slate-300 cursor-not-allowed"}`}
               >
                 {saving ? "Saving..." : "Save Profile"}
               </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   User, Building2, CheckCircle2, Loader2
 } from "lucide-react";
@@ -34,6 +34,17 @@ export default function BuilderProfile() {
     loadProfile();
   }, []);
 
+  // Track if anything changed
+  const hasChanges = useMemo(() => {
+    if (!profile) return false;
+    return (
+      name !== (profile.name || "") ||
+      company !== (profile.agency_name || "") ||
+      email !== (profile.email || "") ||
+      location !== (profile.location || "")
+    );
+  }, [name, company, email, location, profile]);
+
   async function loadProfile() {
     setLoading(true);
     try {
@@ -57,6 +68,7 @@ export default function BuilderProfile() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasChanges) return;
     setSaving(true);
     setMessage("");
     setError("");
@@ -175,8 +187,8 @@ export default function BuilderProfile() {
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                disabled={saving}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition disabled:opacity-60"
+                disabled={saving || !hasChanges}
+                className={`px-5 py-2.5 font-bold rounded-xl shadow-md transition text-white ${hasChanges ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-300 cursor-not-allowed"}`}
               >
                 {saving ? "Saving..." : "Save Profile"}
               </button>

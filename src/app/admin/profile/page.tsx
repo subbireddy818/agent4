@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { User, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
 
 interface ProfileData {
@@ -31,24 +31,40 @@ export default function AdminProfile() {
 
   async function loadProfile() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/profile");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.profile) {
-          setProfile(data.profile);
-          setName(data.profile.name || "");
-          setOrg(data.profile.agency_name || "");
-          setEmail(data.profile.email || "");
-          setLocation(data.profile.location || "");
-        }
+      const data = await res.json();
+      if (data.profile) {
+        setProfile(data.profile);
+        setName(data.profile.name || "");
+        setOrg(data.profile.agency_name || "");
+        setEmail(data.profile.email || "");
+        setLocation(data.profile.location || "");
+      } else {
+        setError(data.error || "Could not load profile.");
       }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      setError("Network error loading profile.");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  // Track if anything changed
+  const hasChanges = useMemo(() => {
+    if (!profile) return false;
+    return (
+      name !== (profile.name || "") ||
+      org !== (profile.agency_name || "") ||
+      email !== (profile.email || "") ||
+      location !== (profile.location || "")
+    );
+  }, [name, org, email, location, profile]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasChanges) return;
     setSaving(true); setMessage(""); setError("");
     try {
       const res = await fetch("/api/profile", {
@@ -57,8 +73,12 @@ export default function AdminProfile() {
         body: JSON.stringify({ name, agency_name: org, email, location }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) setError(data.error || "Failed to save.");
-      else { setMessage("Profile updated successfully!"); setProfile(data.profile); }
+      if (!res.ok || data.error) {
+        setError(data.error || "Failed to save.");
+      } else {
+        setMessage("Profile updated successfully!");
+        setProfile(data.profile);
+      }
     } catch { setError("Network error."); }
     finally { setSaving(false); }
   };
@@ -104,7 +124,9 @@ export default function AdminProfile() {
             {message && <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-600 text-xs flex items-center space-x-2 font-bold"><CheckCircle2 className="w-4 h-4" /><span>{message}</span></div>}
             {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold">{error}</div>}
             <div className="pt-2 flex justify-end">
-              <button type="submit" disabled={saving} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition disabled:opacity-60">{saving ? "Saving..." : "Update Profile"}</button>
+              <button type="submit" disabled={saving || !hasChanges} className={`px-5 py-2.5 font-bold rounded-xl shadow-md transition text-white ${hasChanges ? "bg-emerald-600 hover:bg-emerald-700" : "bg-slate-300 cursor-not-allowed"}`}>
+                {saving ? "Saving..." : "Update Profile"}
+              </button>
             </div>
           </form>
         </div>
@@ -115,7 +137,7 @@ export default function AdminProfile() {
               <ShieldCheck className="w-10 h-10 text-emerald-500 shrink-0" />
               <div>
                 <div className="text-base font-bold text-slate-900">Admin Account</div>
-                <div className="text-[10px] text-slate-500 font-semibold capitalize">Role: {profile?.role}</div>
+                <div className="text-[10px] text-slate-500 font-semibold capitalize">Role: {profile?.role || "admin"}</div>
               </div>
             </div>
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
