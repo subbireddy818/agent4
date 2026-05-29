@@ -39,37 +39,14 @@ export default function NewProject() {
     }
   };
 
-  const handleUploadInventory = (e: React.FormEvent) => {
+  const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !location) return;
 
-    setStep(2);
-    setParsing(true);
-    setUploadProgress(10);
-
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setParsing(false);
-          // Set parsed units with statuses from spec: AVAILABLE, BOOKED, SOLD
-          setParsedUnits([
-            { number: "A-101", config: "3 BHK Apartment", size: "1850 Sqft", price: "₹1.82 Cr", status: "AVAILABLE" },
-            { number: "A-102", config: "3 BHK Apartment", size: "1850 Sqft", price: "₹1.82 Cr", status: "AVAILABLE" },
-            { number: "B-201", config: "4 BHK Villa", size: "2600 Sqft", price: "₹2.55 Cr", status: "BOOKED" },
-            { number: "C-104", config: "Retail Shop", size: "1200 Sqft", price: "₹3.10 Cr", status: "SOLD" }
-          ]);
-          return 100;
-        }
-        return prev + 30;
-      });
-    }, 800);
-  };
-
-  const handleSaveProject = async () => {
     setSaving(true);
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
-    const res = await saveProjectAction(phone, name, location, city, price, propType, parsedUnits);
+    // Save project with no units for now
+    const res = await saveProjectAction(phone, name, location, city, price, propType, []);
 
     if (res.ok) {
       router.push("/builder/dashboard");
@@ -96,7 +73,7 @@ export default function NewProject() {
               <span>Project Schema Configuration</span>
             </h3>
 
-            <form onSubmit={handleUploadInventory} className="space-y-4 text-xs font-semibold text-slate-400">
+            <form onSubmit={handleSaveProject} className="space-y-4 text-xs font-semibold text-slate-400">
               <div className="space-y-1.5">
                 <label className="block uppercase tracking-wider text-[10px]">Project Name</label>
                 <input 
@@ -185,88 +162,16 @@ export default function NewProject() {
                 </Link>
                 <button 
                   type="submit"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition"
+                  disabled={saving}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center space-x-2 disabled:opacity-70"
                 >
-                  Upload & Parse Inventory
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Save Project</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
-      ) : (
-        /* Parsing Results */
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6 shadow-sm">
-          {parsing ? (
-            <div className="py-12 text-center space-y-4">
-              <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto" />
-              <div>
-                <h3 className="font-extrabold text-base text-slate-800">AI Parsing spreadsheet...</h3>
-                <p className="text-slate-500 text-xs mt-1">Extracting units metadata from file rows.</p>
-              </div>
-              <div className="w-48 bg-slate-100 rounded-full h-1.5 mx-auto overflow-hidden">
-                <div className="bg-indigo-500 h-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 text-emerald-600 font-bold">
-                <CheckCircle className="w-5 h-5 shrink-0" />
-                <h3 className="text-base text-slate-900">Parsing Complete! 4 Units Extracted.</h3>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs font-semibold">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase tracking-wider text-[9px]">
-                    <tr>
-                      <th className="px-4 py-3">Unit Number</th>
-                      <th className="px-4 py-3">Description Template</th>
-                      <th className="px-4 py-3">Area Size</th>
-                      <th className="px-4 py-3">Price</th>
-                      <th className="px-4 py-3">Availability Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {parsedUnits.map((unit) => (
-                      <tr key={unit.number} className="hover:bg-slate-50/50 transition">
-                        <td className="px-4 py-3.5 font-bold text-slate-900">{unit.number}</td>
-                        <td className="px-4 py-3.5">{unit.config}</td>
-                        <td className="px-4 py-3.5">{unit.size}</td>
-                        <td className="px-4 py-3.5 font-extrabold text-[#16c47f]">{unit.price}</td>
-                        <td className="px-4 py-3.5">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            unit.status === "AVAILABLE" ? "bg-emerald-50 text-emerald-600 border border-emerald-250" :
-                            unit.status === "BOOKED" ? "bg-amber-50 text-amber-600 border border-amber-250" :
-                            "bg-red-50 text-red-655 border border-red-250"
-                          }`}>
-                            {unit.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2 text-sm font-bold">
-                <button 
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2.5 bg-transparent text-slate-500 hover:text-slate-800 rounded-xl transition"
-                >
-                  Re-upload
-                </button>
-                <button 
-                  onClick={handleSaveProject}
-                  disabled={saving}
-                  className="px-5 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2 disabled:opacity-70"
-                >
-                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Save Project & Units</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
