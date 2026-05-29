@@ -13,6 +13,7 @@ export default function BuilderSidebar() {
 
   const menuItems = [
     { name: "Overview", href: "/builder/dashboard", icon: BarChart3 },
+    { name: "My Projects", href: "/builder/projects", icon: Building2 },
     { name: "Add Project", href: "/builder/projects/new", icon: PlusCircle },
     { name: "Campaigns", href: "/builder/campaigns", icon: Megaphone },
     { name: "Agent Directory", href: "/builder/agents", icon: Users },
@@ -35,7 +36,11 @@ export default function BuilderSidebar() {
         {/* Navigation Items */}
         <nav className="space-y-1">
           {menuItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = item.href === "/builder/projects" 
+              ? pathname === "/builder/projects"
+              : item.href === "/builder/dashboard"
+                ? pathname === "/builder/dashboard"
+                : pathname.startsWith(item.href);
             const Icon = item.icon;
 
             return (

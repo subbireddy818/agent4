@@ -61,6 +61,10 @@ export default function AdminDashboard() {
   const [agentLeads, setAgentLeads] = useState<Lead[]>([]);
   const [loadingAgentLeads, setLoadingAgentLeads] = useState(false);
 
+  // Builder detail view
+  const [selectedBuilder, setSelectedBuilder] = useState<Profile | null>(null);
+  const [builderProjects, setBuilderProjects] = useState<Project[]>([]);
+
   async function loadData() {
     setLoading(true);
     try {
@@ -122,6 +126,11 @@ export default function AdminDashboard() {
     } finally {
       setLoadingAgentLeads(false);
     }
+  }
+
+  function viewBuilderProjects(builder: Profile) {
+    setSelectedBuilder(builder);
+    setBuilderProjects(projects.filter(p => p.developer_id === builder.id));
   }
 
   useEffect(() => {
@@ -303,32 +312,43 @@ export default function AdminDashboard() {
               {builders.length === 0 && !loading && (
                 <div className="text-center text-slate-400 text-xs py-8">No builders registered yet.</div>
               )}
-              {builders.map((builder) => (
-                <div key={builder.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-200 transition text-xs font-semibold">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-extrabold text-slate-900">{builder.name}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
-                        {builder.agency_name || "Builder"} · {builder.phone}
-                      </div>
-                      {builder.location && (
-                        <div className="text-[10px] text-slate-400 mt-0.5 flex items-center space-x-1">
-                          <MapPin className="w-2.5 h-2.5" />
-                          <span>{builder.location}</span>
+              {builders.map((builder) => {
+                const builderProjectCount = projects.filter(p => p.developer_id === builder.id).length;
+                return (
+                  <button 
+                    key={builder.id} 
+                    onClick={() => viewBuilderProjects(builder)}
+                    className="w-full text-left p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-xs font-semibold group"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="font-extrabold text-slate-900">{builder.name}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          {builder.agency_name || "Builder"} · {builder.phone}
                         </div>
-                      )}
+                        {builder.location && (
+                          <div className="text-[10px] text-slate-400 mt-0.5 flex items-center space-x-1">
+                            <MapPin className="w-2.5 h-2.5" />
+                            <span>{builder.location}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right flex items-center space-x-3">
+                        <div>
+                          <div className="text-[9px] text-slate-400">Projects</div>
+                          <div className="font-extrabold text-slate-900">{builderProjectCount}</div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          builder.status === "approved" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                        }`}>
+                          {builder.status === "approved" ? "Approved" : "Pending"}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition" />
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        builder.status === "approved" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
-                      }`}>
-                        {builder.status === "approved" ? "Approved" : "Pending"}
-                      </span>
-                      <div className="text-[9px] text-slate-400 mt-1">{timeAgo(builder.created_at)}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -496,6 +516,82 @@ export default function AdminDashboard() {
                           {lead.status?.toUpperCase()}
                         </span>
                         <div className="text-[9px] text-slate-400 mt-1">{timeAgo(lead.created_at)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* Builder Detail Modal */}
+      {selectedBuilder && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-start">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">{selectedBuilder.name}</h2>
+                <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                  <div className="flex items-center space-x-1">
+                    <Phone className="w-3 h-3" />
+                    <span>{selectedBuilder.phone}</span>
+                  </div>
+                  <div>{selectedBuilder.agency_name || "Builder"}</div>
+                  {selectedBuilder.location && (
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{selectedBuilder.location}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center space-x-2">
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                    selectedBuilder.status === "approved" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                  }`}>
+                    {selectedBuilder.status === "approved" ? "Approved" : "Pending"}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedBuilder(null)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[400px] overflow-y-auto">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+                Projects by {selectedBuilder.name} ({builderProjects.length})
+              </h3>
+
+              {builderProjects.length === 0 && (
+                <div className="text-center text-slate-400 text-xs py-8">This builder has not added any projects yet.</div>
+              )}
+
+              <div className="space-y-3">
+                {builderProjects.map((project) => (
+                  <div key={project.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-extrabold text-slate-900">{project.name}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          {project.type} · {project.location}, {project.city}
+                        </div>
+                        {project.price_range && (
+                          <div className="text-[10px] text-slate-500 mt-0.5">
+                            Est. Price: <span className="font-bold text-emerald-600">{project.price_range}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-600">
+                          Active
+                        </span>
+                        <div className="text-[9px] text-slate-400 mt-1">{timeAgo(project.created_at)}</div>
                       </div>
                     </div>
                   </div>
