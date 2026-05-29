@@ -87,24 +87,43 @@ export async function saveProjectAction(
         .eq("role", "agent");
 
     if (agents && agents.length > 0) {
-        // Send asynchronously
-        Promise.all(agents.map(async (agent) => {
-            try {
-                // In a real env, use process.env.NEXT_PUBLIC_BASE_URL
-                // We hardcode the Vercel app path to fix the relative fetch issue on server
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agent4-ochre.vercel.app";
-                const followUrl = `${baseUrl}/agent/follow?project_id=${project.id}`;
-                const text = `🚀 *New Project Launched!*\n\n${name} in ${location} is now live on the platform.\nStarting at ${priceEstimate}.\n\nClick here to follow this project and get updates:\n${followUrl}`;
-                
-                await fetch(`${baseUrl}/api/whatsapp/send`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ phone: agent.phone, text })
-                }).catch(e => console.error("Fetch to whatsapp api failed:", e));
-            } catch (err) {
-                console.error("Error notifying agent:", agent.phone, err);
-            }
-        })).catch(console.error);
+        const apiKey = process.env.GALLABOX_API_KEY;
+        const apiSecret = process.env.GALLABOX_API_SECRET;
+        const channelId = process.env.GALLABOX_CHANNEL_ID;
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agent4-ochre.vercel.app";
+
+        if (!apiKey || !apiSecret || !channelId) {
+            console.warn("GallaBox not configured, skipping WhatsApp notifications.");
+        } else {
+            Promise.all(agents.map(async (agent) => {
+                try {
+                    const digits = agent.phone.replace(/\D/g, "");
+                    const finalPhone = digits.length === 10 ? `91${digits}` : digits;
+
+                    const followUrl = `${baseUrl}/agent/follow?project_id=${project.id}`;
+                    const text = `🚀 *New Project Launched!*\n\n*${name}* in ${location} is now live on the platform.\nStarting at ${priceEstimate}.\n\nTap the link below to follow and track this project:\n${followUrl}`;
+
+                    const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
+                        method: "POST",
+                        headers: {
+                            "apiKey": apiKey,
+                            "apiSecret": apiSecret,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            channelId,
+                            channelType: "whatsapp",
+                            recipient: { name: "Agent", phone: finalPhone },
+                            whatsapp: { type: "text", text: { body: text } }
+                        })
+                    });
+                    const data = await res.json();
+                    console.log(`WhatsApp sent to ${agent.phone}:`, JSON.stringify(data));
+                } catch (err) {
+                    console.error("Error notifying agent via WhatsApp:", agent.phone, err);
+                }
+            })).catch(console.error);
+        }
     }
 
     return { ok: true };
