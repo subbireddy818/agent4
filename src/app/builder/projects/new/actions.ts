@@ -27,7 +27,7 @@ export async function saveProjectAction(
     // Get builder profile
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("id")
+      .select("id, agency_name")
       .eq("phone", formattedPhone)
       .single();
 
