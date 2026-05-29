@@ -82,6 +82,21 @@ export async function approveAgentAction(id: string, phone: string, name: string
   }
 }
 
+export async function requestDocsAction(id: string) {
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ status: "docs_required" })
+      .eq("id", id);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in requestDocsAction:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function rejectAgentAction(id: string, phone: string, reason: string) {
   try {
     // 1. Update Agent status to rejected in profiles
