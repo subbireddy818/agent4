@@ -524,7 +524,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-        </div>
       )}
 
       {/* Builder Detail Modal */}
