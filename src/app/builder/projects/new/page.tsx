@@ -41,10 +41,6 @@ export default function NewProject() {
 
   const handleUploadInventory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fileName) {
-      alert("Please upload an Excel spreadsheet inventory file first.");
-      return;
-    }
     if (!name || !location) return;
 
     setStep(2);
@@ -56,12 +52,12 @@ export default function NewProject() {
         if (prev >= 100) {
           clearInterval(interval);
           setParsing(false);
-          // Set parsed units with statuses from spec: AVAILABLE, HOLD, SOLD, BLOCKED
+          // Set parsed units with statuses from spec: AVAILABLE, BOOKED, SOLD
           setParsedUnits([
             { number: "A-101", config: "3 BHK Apartment", size: "1850 Sqft", price: "₹1.82 Cr", status: "AVAILABLE" },
             { number: "A-102", config: "3 BHK Apartment", size: "1850 Sqft", price: "₹1.82 Cr", status: "AVAILABLE" },
-            { number: "B-201", config: "4 BHK Villa", size: "2600 Sqft", price: "₹2.55 Cr", status: "HOLD" },
-            { number: "C-104", config: "Retail Shop", size: "1200 Sqft", price: "₹3.10 Cr", status: "BLOCKED" }
+            { number: "B-201", config: "4 BHK Villa", size: "2600 Sqft", price: "₹2.55 Cr", status: "BOOKED" },
+            { number: "C-104", config: "Retail Shop", size: "1200 Sqft", price: "₹3.10 Cr", status: "SOLD" }
           ]);
           return 100;
         }
@@ -239,7 +235,7 @@ export default function NewProject() {
                         <td className="px-4 py-3.5">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
                             unit.status === "AVAILABLE" ? "bg-emerald-50 text-emerald-600 border border-emerald-250" :
-                            unit.status === "HOLD" ? "bg-amber-50 text-amber-600 border border-amber-250" :
+                            unit.status === "BOOKED" ? "bg-amber-50 text-amber-600 border border-amber-250" :
                             "bg-red-50 text-red-655 border border-red-250"
                           }`}>
                             {unit.status}
