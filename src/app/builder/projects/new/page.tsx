@@ -6,6 +6,8 @@ import {
   CheckCircle, Sparkles, X 
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { saveProjectAction } from "./actions";
 
 interface ParsedUnit {
   number: string;
@@ -27,6 +29,8 @@ export default function NewProject() {
   const [parsing, setParsing] = useState(false);
   const [parsedUnits, setParsedUnits] = useState<ParsedUnit[]>([]);
   const [step, setStep] = useState(1); // 1: Form, 2: Parsing/Result
+  const [saving, setSaving] = useState(false);
+  const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -62,13 +66,17 @@ export default function NewProject() {
     }, 800);
   };
 
-  const handleSaveProject = () => {
-    alert(`Project "${name}" and all ${parsedUnits.length} parsed inventory units have been saved successfully!`);
-    setStep(1);
-    setName("");
-    setLocation("");
-    setFileName("");
-    setParsedUnits([]);
+  const handleSaveProject = async () => {
+    setSaving(true);
+    const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+    const res = await saveProjectAction(phone, name, location, city, price, propType, parsedUnits);
+
+    if (res.ok) {
+      router.push("/builder/dashboard");
+    } else {
+      alert("Error saving project: " + res.error);
+      setSaving(false);
+    }
   };
 
   return (
@@ -248,9 +256,11 @@ export default function NewProject() {
                 </button>
                 <button 
                   onClick={handleSaveProject}
-                  className="px-5 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl shadow-lg transition"
+                  disabled={saving}
+                  className="px-5 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2 disabled:opacity-70"
                 >
-                  Save Project & Units
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Save Project & Units</span>
                 </button>
               </div>
             </div>

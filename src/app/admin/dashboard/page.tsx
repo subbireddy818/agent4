@@ -21,6 +21,17 @@ interface Profile {
   created_at: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  location: string;
+  price_range: string;
+  type: string;
+  created_at: string;
+  developer_id: string;
+  developer_name?: string;
+}
+
 interface Lead {
   id: string;
   name: string;
@@ -34,7 +45,7 @@ interface Lead {
   agent_name?: string;
 }
 
-type ActiveTab = "agents" | "builders" | "leads" | "pending";
+type ActiveTab = "projects" | "agents" | "builders" | "leads" | "pending";
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -42,7 +53,8 @@ export default function AdminDashboard() {
   const [builders, setBuilders] = useState<Profile[]>([]);
   const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("agents");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("projects");
 
   // Agent detail view
   const [selectedAgent, setSelectedAgent] = useState<Profile | null>(null);
@@ -74,6 +86,18 @@ export default function AdminDashboard() {
           agent_name: l.profiles?.name || "Unknown Agent",
         }));
         setLeads(mappedLeads);
+      }
+
+      const { data: projectsData } = await supabase
+        .from("projects")
+        .select("*, profiles(name)")
+        .order("created_at", { ascending: false });
+
+      if (projectsData) {
+        setProjects(projectsData.map((p: any) => ({
+          ...p,
+          developer_name: p.profiles?.name || "Unknown Builder"
+        })));
       }
     } catch (err) {
       console.error("Error loading admin data:", err);
@@ -115,9 +139,9 @@ export default function AdminDashboard() {
   };
 
   const tabs: { key: ActiveTab; label: string; count: number; icon: any; color: string }[] = [
-    { key: "agents", label: "Registered Agents", count: agents.length, icon: Users, color: "emerald" },
+    { key: "projects", label: "Total Projects", count: projects.length, icon: Building, color: "blue" },
     { key: "builders", label: "Builders", count: builders.length, icon: Building, color: "indigo" },
-    { key: "leads", label: "Total Leads", count: leads.length, icon: Briefcase, color: "blue" },
+    { key: "agents", label: "Registered Agents", count: agents.length, icon: Users, color: "emerald" },
     { key: "pending", label: "Pending Verification", count: pendingProfiles.length, icon: ShieldAlert, color: "red" },
   ];
 
@@ -181,6 +205,42 @@ export default function AdminDashboard() {
 
       {/* Tab Content */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm min-h-[400px]">
+
+        {/* PROJECTS TAB */}
+        {activeTab === "projects" && (
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+              All Projects ({projects.length})
+            </h3>
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              {projects.length === 0 && !loading && (
+                <div className="text-center text-slate-400 text-xs py-8">No projects created yet.</div>
+              )}
+              {projects.map((project) => (
+                <div key={project.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-blue-300 transition text-xs font-semibold">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-extrabold text-slate-900">{project.name}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5 capitalize">
+                        {project.type} · {project.location}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        Developer: <span className="text-indigo-600 font-bold">{project.developer_name}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-600">
+                        Active
+                      </span>
+                      <div className="text-[9px] text-slate-400 mt-1">{timeAgo(project.created_at)}</div>
+                      {project.price_range && <div className="text-[9px] text-emerald-600 font-bold mt-0.5">{project.price_range}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* AGENTS TAB */}
         {activeTab === "agents" && (
