@@ -13,14 +13,33 @@ export async function GET() {
     return NextResponse.json({ profile: null, error: "Not authenticated" }, { status: 401 });
   }
 
-  const { data: profile, error } = await supabaseAdmin
+  // Try by ID first
+  let { data: profile, error } = await supabaseAdmin
     .from("profiles")
     .select("*")
     .eq("id", session.sub)
     .maybeSingle();
 
+  // If not found by ID, try by phone (handles case where session.sub doesn't match profile.id)
+  if (!profile && session.phone) {
+    const { data: profileByPhone } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("phone", session.phone)
+      .maybeSingle();
+
+    if (profileByPhone) {
+      profile = profileByPhone;
+      error = null;
+    }
+  }
+
   if (error) {
     return NextResponse.json({ profile: null, error: error.message }, { status: 500 });
+  }
+
+  if (!profile) {
+    return NextResponse.json({ profile: null, error: "Could not load profile." }, { status: 404 });
   }
 
   return NextResponse.json({ profile });
@@ -57,6 +76,23 @@ export async function PUT(req: Request) {
       .eq("id", session.sub)
       .select()
       .maybeSingle();
+
+    // If update by ID didn't find the row, try by phone
+    if (!profile && session.phone) {
+      const { data: profileByPhone, error: phoneErr } = await supabaseAdmin
+        .from("profiles")
+        .update(updates)
+        .eq("phone", session.phone)
+        .select()
+        .maybeSingle();
+
+      if (profileByPhone) {
+        return NextResponse.json({ profile: profileByPhone });
+      }
+      if (phoneErr) {
+        return NextResponse.json({ error: phoneErr.message }, { status: 500 });
+      }
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
