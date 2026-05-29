@@ -25,6 +25,7 @@ interface Project {
   id: string;
   name: string;
   location: string;
+  city: string;
   price_range: string;
   type: string;
   created_at: string;
