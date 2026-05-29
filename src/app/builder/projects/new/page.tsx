@@ -41,7 +41,11 @@ export default function NewProject() {
 
   const handleUploadInventory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !location || !fileName) return;
+    if (!fileName) {
+      alert("Please upload an Excel spreadsheet inventory file first.");
+      return;
+    }
+    if (!name || !location) return;
 
     setStep(2);
     setParsing(true);
