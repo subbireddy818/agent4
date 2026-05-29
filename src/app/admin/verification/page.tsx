@@ -14,11 +14,13 @@ interface AgentRequest {
   phone: string;
   email: string;
   rera: string;
+  role: string;
   status: "Pending" | "Docs Required" | "Docs Uploaded" | "Approved" | "Rejected";
   rejectionReason?: string;
   assignedCpId?: string;
   referredBy?: string | null;
   uploadedDocs: { doc_type: string; file_name: string; file_url: string; uploaded_at: string }[];
+  builderKyc?: { project_name: string; location: string; city: string; price_estimate: string; company_details: string; brochure_url: string; brochure_file_name: string } | null;
 }
 
 export default function VerificationQueue() {
@@ -43,6 +45,14 @@ export default function VerificationQueue() {
           allDocs = docsData.docs || [];
         }
 
+        // Fetch builder KYC data
+        const kycRes = await fetch("/api/builder-kyc?builder_id=all");
+        let allKyc: any[] = [];
+        if (kycRes.ok) {
+          const kycData = await kycRes.json();
+          allKyc = kycData.kycList || [];
+        }
+
         const mapped: AgentRequest[] = res.profiles.map((p: any) => {
           const matchingRef = res.referrals?.find((r: any) => r.referred_phone === p.phone);
           const referredBy = matchingRef?.profiles ? (matchingRef.profiles as any).cp_id : null;
@@ -54,19 +64,22 @@ export default function VerificationQueue() {
           else if (p.status === "docs_uploaded") statusStr = "Docs Uploaded";
 
           const agentDocs = allDocs.filter((d: any) => d.agent_id === p.id);
+          const builderKyc = allKyc.find((k: any) => k.builder_id === p.id);
 
           return {
             id: p.id,
             name: p.name,
-            agency: p.agency_name || "Independent Agent",
+            agency: p.agency_name || (p.role === "builder" ? "Builder" : "Independent Agent"),
             phone: p.phone,
             email: p.email || "No Email",
-            rera: p.rera_number || "No RERA Registered",
+            rera: p.rera_number || "N/A",
+            role: p.role,
             status: statusStr,
             rejectionReason: p.rejection_reason,
             assignedCpId: p.cp_id,
             referredBy,
             uploadedDocs: agentDocs,
+            builderKyc: builderKyc || null,
           };
         });
         setRequests(mapped);
@@ -231,7 +244,7 @@ export default function VerificationQueue() {
                 <div>
                   <h4 className="font-bold text-sm text-slate-900">{req.name}</h4>
                   <div className="text-xs text-slate-500 mt-0.5 font-semibold">{req.agency}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">{req.phone}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{req.phone} · <span className="capitalize font-bold">{req.role}</span></div>
                   {req.referredBy && (
                     <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded bg-[#25d366]/10 text-[9px] text-[#16c47f] font-bold">
                       Referred by: {req.referredBy}
@@ -310,9 +323,34 @@ export default function VerificationQueue() {
                 </div>
               )}
 
-              {selectedRequest.uploadedDocs.length === 0 && selectedRequest.status !== "Approved" && selectedRequest.status !== "Rejected" && (
+              {selectedRequest.uploadedDocs.length === 0 && !selectedRequest.builderKyc && selectedRequest.status !== "Approved" && selectedRequest.status !== "Rejected" && (
                 <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-400">
-                  No documents uploaded yet by this agent.
+                  No documents or project details uploaded yet.
+                </div>
+              )}
+
+              {/* Builder KYC Details */}
+              {selectedRequest.builderKyc && (
+                <div className="space-y-3">
+                  <div className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Builder Project Details</div>
+                  <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-200 space-y-2 text-xs">
+                    <div className="flex justify-between"><span className="text-slate-500">Project:</span><span className="font-bold text-slate-900">{selectedRequest.builderKyc.project_name}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">City:</span><span className="font-bold text-slate-900">{selectedRequest.builderKyc.city}</span></div>
+                    {selectedRequest.builderKyc.location && <div className="flex justify-between"><span className="text-slate-500">Location:</span><span className="font-bold text-slate-900">{selectedRequest.builderKyc.location}</span></div>}
+                    {selectedRequest.builderKyc.price_estimate && <div className="flex justify-between"><span className="text-slate-500">Price Estimate:</span><span className="font-bold text-slate-900">{selectedRequest.builderKyc.price_estimate}</span></div>}
+                    <div className="pt-2 border-t border-indigo-100">
+                      <div className="text-slate-500 mb-1">Company Details:</div>
+                      <p className="text-slate-800 font-medium">{selectedRequest.builderKyc.company_details}</p>
+                    </div>
+                    {selectedRequest.builderKyc.brochure_url && (
+                      <div className="pt-2 border-t border-indigo-100">
+                        <a href={selectedRequest.builderKyc.brochure_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition">
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download Brochure ({selectedRequest.builderKyc.brochure_file_name})</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -7,7 +7,7 @@ export async function getVerificationRequests() {
     const { data: profiles, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("role", "agent")
+      .in("role", ["agent", "builder"])
       .order("created_at", { ascending: false });
 
     if (error) throw error;
