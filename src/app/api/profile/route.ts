@@ -17,7 +17,7 @@ export async function GET() {
     .from("profiles")
     .select("*")
     .eq("id", session.sub)
-    .single();
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ profile: null, error: error.message }, { status: 500 });
@@ -56,7 +56,7 @@ export async function PUT(req: Request) {
       .update(updates)
       .eq("id", session.sub)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
