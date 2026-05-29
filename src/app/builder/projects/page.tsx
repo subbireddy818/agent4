@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, Loader2, MapPin } from "lucide-react";
+import { Building2, Loader2, MapPin, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { deleteProjectAction } from "./actions";
 
 interface Project {
   id: string;
@@ -17,6 +18,7 @@ interface Project {
 export default function BuilderProjects() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProjects();
@@ -52,6 +54,22 @@ export default function BuilderProjects() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleDelete(projectId: string, projectName: string) {
+    if (!window.confirm(`Are you sure you want to delete the project "${projectName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(projectId);
+    const res = await deleteProjectAction(projectId);
+    
+    if (res.ok) {
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    } else {
+      alert("Failed to delete project: " + res.error);
+    }
+    setDeletingId(null);
   }
 
   function timeAgo(dateString: string) {
@@ -95,10 +113,24 @@ export default function BuilderProjects() {
             <div key={project.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col">
               <div className="p-5 border-b border-slate-100 flex-1">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold uppercase tracking-wide">
-                    {project.type}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">{timeAgo(project.created_at)}</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold uppercase tracking-wide">
+                      {project.type}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">{timeAgo(project.created_at)}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(project.id, project.name)}
+                    disabled={deletingId === project.id}
+                    className="p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition disabled:opacity-50"
+                    title="Delete Project"
+                  >
+                    {deletingId === project.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
                 <h3 className="text-lg font-extrabold text-slate-900 leading-tight mb-2">
                   {project.name}
