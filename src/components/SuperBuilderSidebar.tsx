@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2, BarChart3, Users, Share2,
-  LogOut, RefreshCw, Crown
+  LogOut, RefreshCw, Crown, Bell
 } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
@@ -16,6 +16,7 @@ export default function SuperBuilderSidebar() {
     { name: "My Projects", href: "/super-builder/projects", icon: Building2 },
     { name: "Share Projects", href: "/super-builder/projects/share", icon: Share2 },
     { name: "Manage Builders", href: "/super-builder/builders", icon: Users },
+    { name: "Notifications", href: "/super-builder/notifications", icon: Bell },
   ];
 
   return (
