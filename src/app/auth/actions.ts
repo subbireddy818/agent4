@@ -52,7 +52,7 @@ const KYC_GRACE_MS = 30 * 60 * 1000;        // OTP must have been used within la
 const MAX_ATTEMPTS = 5;
 const REQUEST_COOLDOWN_MS = 45 * 1000;      // anti-spam: 45s between sends per phone
 
-type Role = "agent" | "builder" | "admin";
+type Role = "agent" | "builder" | "super_builder" | "admin";
 
 /** Format a raw 10-digit number to the canonical "+91 98765 43210" shape. */
 function formatPhone(raw: string): string {
@@ -135,6 +135,8 @@ async function setSessionCookie(payload: {
 
 function dashboardForRole(role: string): string {
   switch (role) {
+    case "super_builder":
+      return "/super-builder/dashboard";
     case "builder":
       return "/builder/dashboard";
     case "admin":
