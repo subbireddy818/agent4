@@ -9,8 +9,9 @@ export async function launchCampaignAction(
   template: string,
   date: string,
   location: string,
-  description: string
-): Promise<{ ok: boolean; error?: string }> {
+  description: string,
+  targetLocations?: string[]
+): Promise<{ ok: boolean; error?: string; sentCount?: number }> {
   try {
     const digits = phone.replace(/\D/g, "");
     const last10 = digits.slice(-10);
@@ -50,6 +51,7 @@ export async function launchCampaignAction(
         date,
         location,
         description,
+        target_locations: targetLocations || [],
       });
 
     if (eventError) {
@@ -57,53 +59,69 @@ export async function launchCampaignAction(
         return { ok: false, error: eventError.message };
     }
 
-    // 3. Send WhatsApp message to all registered agents
+    // 3. Send WhatsApp message to filtered agents based on location
     const apiKey = process.env.GALLABOX_API_KEY;
     const apiSecret = process.env.GALLABOX_API_SECRET;
     const channelId = process.env.GALLABOX_CHANNEL_ID;
 
-    if (apiKey && apiSecret && channelId) {
-      const { data: agents } = await supabaseAdmin
-        .from("profiles")
-        .select("phone")
-        .eq("role", "agent")
-        .eq("status", "approved");
+    // Build agent query - filter by location if specified
+    let agentQuery = supabaseAdmin
+      .from("profiles")
+      .select("phone, name, location")
+      .eq("role", "agent")
+      .eq("status", "approved");
 
-      if (agents && agents.length > 0) {
-        for (const agent of agents) {
-          if (!agent.phone) continue;
-          const cleanPhone = agent.phone.replace(/\D/g, "");
-          const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    // Filter by specific locations if provided
+    if (targetLocations && targetLocations.length > 0) {
+      agentQuery = agentQuery.in("location", targetLocations);
+    }
 
-          await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
-            method: "POST",
-            headers: {
-              "apiKey": apiKey,
-              "apiSecret": apiSecret,
-              "Content-Type": "application/json"
+    const { data: agents } = await agentQuery;
+    const sentCount = agents?.length || 0;
+
+    if (apiKey && apiSecret && channelId && agents && agents.length > 0) {
+      for (const agent of agents) {
+        if (!agent.phone) continue;
+        const cleanPhone = agent.phone.replace(/\D/g, "");
+        const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
+        await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
+          method: "POST",
+          headers: {
+            "apiKey": apiKey,
+            "apiSecret": apiSecret,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            channelId: channelId,
+            channelType: "whatsapp",
+            recipient: {
+              name: agent.name || "Agent",
+              phone: finalPhone
             },
-            body: JSON.stringify({
-              channelId: channelId,
-              channelType: "whatsapp",
-              recipient: {
-                name: "Agent",
-                phone: finalPhone
-              },
-              whatsapp: {
-                type: "text",
-                text: {
-                  body: `*${name}*\n\n${description}\n\nDate: ${date}\nLocation: ${location}`
-                }
+            whatsapp: {
+              type: "text",
+              text: {
+                body: `*${name}*\n\n${description}\n\nDate: ${date}\nLocation: ${location}`
               }
-            })
-          }).catch(err => console.error("GallaBox send error:", err));
-        }
+            }
+          })
+        }).catch(err => console.error("GallaBox send error:", err));
       }
-    } else {
+    } else if (!apiKey || !apiSecret || !channelId) {
       console.warn("GallaBox credentials missing, skipping WhatsApp broadcasts.");
     }
 
-    return { ok: true };
+    // Update campaign with actual sent count
+    if (sentCount > 0) {
+      await supabaseAdmin
+        .from("campaigns")
+        .update({ sent_count: sentCount })
+        .eq("builder_id", profile.id)
+        .eq("name", name);
+    }
+
+    return { ok: true, sentCount };
   } catch (err) {
     console.error("Action error:", err);
     return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };

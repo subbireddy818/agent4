@@ -390,6 +390,7 @@ export interface SubmitKycInput {
   agencyName: string;
   email: string;
   reraNumber: string;
+  location?: string;
   refCode?: string | null;
 }
 
@@ -461,7 +462,7 @@ async function submitKycImpl(input: SubmitKycInput): Promise<SubmitKycResult> {
         status: "pending",
         points: 0,
         referrals_count: 0,
-        location: "Hyderabad",
+        location: input.location || "Hyderabad",
       },
     ])
     .select()

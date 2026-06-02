@@ -9,6 +9,7 @@ import {
   MessageSquare, Upload, Clock, UserCheck,
 } from "lucide-react";
 import { requestOtp, verifyOtp, submitKyc, createProfile, loginWithPhone } from "@/app/auth/actions";
+import { HYDERABAD_LOCATIONS } from "@/lib/hyderabadLocations";
 
 function LoginContent() {
   const router = useRouter();
@@ -33,6 +34,7 @@ function LoginContent() {
   const [agencyName, setAgencyName] = useState("");
   const [email, setEmail] = useState("");
   const [reraNumber, setReraNumber] = useState("");
+  const [agentLocation, setAgentLocation] = useState("");
   const [reraUploaded, setReraUploaded] = useState(false);
   const [idUploaded, setIdUploaded] = useState(false);
   const [waVerified, setWaVerified] = useState(false);
@@ -230,8 +232,8 @@ function LoginContent() {
     e.preventDefault();
     setMessage("");
 
-    if (!fullName || !agencyName || !email || !reraNumber || !reraUploaded || !idUploaded) {
-      setMessage("Please fill in all details and upload both documents.");
+    if (!fullName || !agencyName || !email || !reraNumber || !agentLocation || !reraUploaded || !idUploaded) {
+      setMessage("Please fill in all details including location and upload both documents.");
       return;
     }
 
@@ -243,6 +245,7 @@ function LoginContent() {
         agencyName,
         email,
         reraNumber,
+        location: agentLocation,
         refCode,
       });
 
@@ -609,6 +612,22 @@ function LoginContent() {
                   className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3.5 text-slate-800 outline-none text-xs font-semibold transition"
                 />
               </div>
+            </div>
+
+            {/* Location Dropdown */}
+            <div className="space-y-1">
+              <label className="block uppercase text-[9px] font-bold tracking-wider">Your Location (Hyderabad Area) *</label>
+              <select
+                required
+                value={agentLocation}
+                onChange={(e) => setAgentLocation(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3.5 text-slate-800 outline-none text-xs font-semibold transition"
+              >
+                <option value="">Select your area...</option>
+                {HYDERABAD_LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
