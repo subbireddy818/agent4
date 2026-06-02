@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Users, Building2, Calendar, Shield, LogOut, RefreshCw, ShieldAlert } from "lucide-react";
+import { BarChart2, Users, Building2, Calendar, Shield, LogOut, RefreshCw, ShieldAlert, AlertTriangle } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
 export default function SuperAdminSidebar() {
@@ -11,6 +11,7 @@ export default function SuperAdminSidebar() {
   const menuItems = [
     { name: "Dashboard", href: "/super-admin/dashboard", icon: BarChart2 },
     { name: "Users", href: "/super-admin/users", icon: Users },
+    { name: "Warnings", href: "/super-admin/warnings", icon: AlertTriangle },
     { name: "Projects", href: "/super-admin/projects", icon: Building2 },
     { name: "Events", href: "/super-admin/events", icon: Calendar },
     { name: "Verification", href: "/admin/verification", icon: ShieldAlert },
