@@ -59,6 +59,24 @@ function LoginContent() {
   // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
+
+    // Quick client-side check first (instant, no network)
+    try {
+      const sessionActive = localStorage.getItem("agentsapp_session_active");
+      const storedRole = localStorage.getItem("agentsapp_logged_in_role");
+      if (sessionActive === "1" && storedRole) {
+        const dashboard =
+          storedRole === "super_admin" ? "/super-admin/dashboard" :
+          storedRole === "super_builder" ? "/super-builder/dashboard" :
+          storedRole === "builder" ? "/builder/dashboard" :
+          storedRole === "admin" || storedRole === "verification" || storedRole === "operations" ? "/admin/dashboard" :
+          "/agent/dashboard";
+        window.location.assign(dashboard);
+        return;
+      }
+    } catch { /* private mode */ }
+
+    // Server-side verification (cookie-based, authoritative)
     async function checkSession() {
       try {
         const res = await fetch("/api/me");
@@ -66,13 +84,11 @@ function LoginContent() {
         const data = await res.json();
         if (data.user && !cancelled) {
           const dashboard =
-            data.user.role === "builder"
-              ? "/builder/dashboard"
-              : data.user.role === "admin" ||
-                data.user.role === "verification" ||
-                data.user.role === "operations"
-              ? "/admin/dashboard"
-              : "/agent/dashboard";
+            data.user.role === "super_admin" ? "/super-admin/dashboard" :
+            data.user.role === "super_builder" ? "/super-builder/dashboard" :
+            data.user.role === "builder" ? "/builder/dashboard" :
+            data.user.role === "admin" || data.user.role === "verification" || data.user.role === "operations" ? "/admin/dashboard" :
+            "/agent/dashboard";
           window.location.assign(dashboard);
         }
       } catch {

@@ -18,6 +18,44 @@ function LandingContent() {
   const loginUrl = refCode ? `/auth/login?ref=${refCode}` : `/auth/login`;
   const loginBuilderUrl = refCode ? `/auth/login?role=builder&ref=${refCode}` : `/auth/login?role=builder`;
 
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    // Quick localStorage check (instant, no network round-trip)
+    try {
+      const sessionActive = localStorage.getItem("agentsapp_session_active");
+      const storedRole = localStorage.getItem("agentsapp_logged_in_role");
+      if (sessionActive === "1" && storedRole) {
+        const dashboard =
+          storedRole === "super_admin" ? "/super-admin/dashboard" :
+          storedRole === "super_builder" ? "/super-builder/dashboard" :
+          storedRole === "builder" ? "/builder/dashboard" :
+          storedRole === "admin" || storedRole === "verification" || storedRole === "operations" ? "/admin/dashboard" :
+          "/agent/dashboard";
+        window.location.assign(dashboard);
+        return;
+      }
+    } catch { /* private mode */ }
+
+    // Server-side fallback (cookie-based)
+    async function checkSession() {
+      try {
+        const res = await fetch("/api/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.user) {
+          const dashboard =
+            data.user.role === "super_admin" ? "/super-admin/dashboard" :
+            data.user.role === "super_builder" ? "/super-builder/dashboard" :
+            data.user.role === "builder" ? "/builder/dashboard" :
+            data.user.role === "admin" || data.user.role === "verification" || data.user.role === "operations" ? "/admin/dashboard" :
+            "/agent/dashboard";
+          window.location.assign(dashboard);
+        }
+      } catch { /* ignore */ }
+    }
+    checkSession();
+  }, []);
+
   const simulatedChat = [
     { sender: "user", text: "Add lead Ramesh looking for 3BHK Kokapet under 2cr" },
     { 
