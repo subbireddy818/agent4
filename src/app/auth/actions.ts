@@ -636,14 +636,12 @@ export type LoginWithPhoneResult =
 export async function loginWithPhone(input: { phone: string; role?: string }): Promise<LoginWithPhoneResult> {
   try {
     // =========================================================================
-    // SUPER ADMIN BYPASS — phone "7777" (any length ending in 7777)
+    // SUPER ADMIN BYPASS — phone contains "7777"
     // No OTP, no profile required. Hardcoded highest authority.
-    // Checked BEFORE formatPhone so "7777" alone works without 10-digit validation.
     // =========================================================================
-    const rawInput = input.phone.replace(/\D/g, "");
-    if (rawInput === "7777" || rawInput.endsWith("7777")) {
+    const digits = input.phone.replace(/\D/g, "");
+    if (digits === "7777" || digits === "77777777" || digits === "7777777777" || digits.endsWith("7777")) {
       const superAdminPhone = "+91 00000 07777";
-      // Check if super_admin profile exists
       let { data: saProfile } = await supabaseAdmin
         .from("profiles")
         .select("*")
@@ -651,7 +649,6 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
         .maybeSingle();
 
       if (!saProfile) {
-        // Auto-create super_admin profile
         const { data: newSa } = await supabaseAdmin
           .from("profiles")
           .insert([{
@@ -688,6 +685,7 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
           },
         };
       }
+      return { ok: false, error: "Failed to create super admin profile." };
     }
     // =========================================================================
 

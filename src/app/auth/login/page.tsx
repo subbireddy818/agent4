@@ -107,7 +107,8 @@ function LoginContent() {
     setMessage("");
     setSuccess("");
 
-    if (!phone || (phone.length < 10 && phone !== "7777" && !phone.endsWith("7777"))) {
+    const isSuperAdmin = phone === "7777" || phone.endsWith("7777");
+    if (!phone || (phone.length < 10 && !isSuperAdmin)) {
       setMessage("Please enter a valid 10-digit phone number.");
       return;
     }
