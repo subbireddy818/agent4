@@ -17,6 +17,7 @@ export default function BuilderSidebar() {
     { name: "Add Project", href: "/builder/projects/new", icon: PlusCircle },
     { name: "Campaigns", href: "/builder/campaigns", icon: Megaphone },
     { name: "My Events", href: "/builder/events", icon: Calendar },
+    { name: "My Followers", href: "/builder/followers", icon: Users },
     { name: "Super Builders", href: "/builder/super-builders", icon: Crown },
     { name: "Agent Directory", href: "/builder/agents", icon: Users },
     { name: "Profile", href: "/builder/profile", icon: User },

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
-  CheckSquare, BarChart2, LogOut, RefreshCw, User, Building2, Calendar, Activity
+  CheckSquare, BarChart2, LogOut, RefreshCw, User, Building2, Calendar, Activity, Users
 } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
@@ -14,6 +14,7 @@ export default function AdminSidebar() {
     { name: "Analytics", href: "/admin/dashboard", icon: BarChart2 },
     { name: "Projects", href: "/admin/projects", icon: Building2 },
     { name: "Events", href: "/admin/events", icon: Calendar },
+    { name: "Followers", href: "/admin/followers", icon: Users },
     { name: "Activity", href: "/admin/activity", icon: Activity },
     { name: "Verification", href: "/admin/verification", icon: CheckSquare },
     { name: "Profile", href: "/admin/profile", icon: User },
