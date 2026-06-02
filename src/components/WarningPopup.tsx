@@ -121,7 +121,7 @@ export default function WarningPopup() {
             <AlertTriangle className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-extrabold text-white">⚠️ Warning from Super Admin</h2>
+            <h2 className="text-lg font-extrabold text-white">⚠️ Warning from System Bot</h2>
             <p className="text-[10px] text-red-100 font-semibold uppercase tracking-wider">Action Required — Please Read Carefully</p>
           </div>
         </div>
