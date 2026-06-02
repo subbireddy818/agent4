@@ -347,10 +347,10 @@ function LoginContent() {
       {/* Logo */}
       <div className="flex items-center space-x-2 mb-8 justify-center">
         <div className="w-8 h-8 rounded-lg bg-[#25d366] flex items-center justify-center font-bold text-white shadow-md">
-          a
+          R
         </div>
         <span className="text-xl font-bold tracking-tight text-[#0f172a]">
-          agents<span className="text-[#16c47f]">app</span>
+          real<span className="text-[#16c47f]">connect</span>
         </span>
       </div>
 
