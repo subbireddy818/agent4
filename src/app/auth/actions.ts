@@ -615,3 +615,84 @@ export async function logout(): Promise<{ ok: true }> {
   });
   return { ok: true };
 }
+
+// -----------------------------------------------------------------------------
+// loginWithPhone — OTP-free login (OTP paused). Looks up profile by phone and
+// issues a session cookie directly. For new users, falls back to KYC/profile
+// setup flow just like OTP-based login.
+// -----------------------------------------------------------------------------
+
+export type LoginWithPhoneResult =
+  | { ok: true; status: "logged_in"; redirect: string; user: { id: string; phone: string; role: string; name: string } }
+  | { ok: true; status: "needs_kyc"; phone: string }
+  | { ok: true; status: "needs_profile_setup"; phone: string; role: string }
+  | { ok: false; error: string };
+
+export async function loginWithPhone(input: { phone: string; role?: string }): Promise<LoginWithPhoneResult> {
+  try {
+    const phone = formatPhone(input.phone);
+    if (!phone) return { ok: false, error: "Please enter a valid 10-digit phone number." };
+
+    const role = (input.role || "agent") as Role;
+
+    // Look up existing profile
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (profile) {
+      // Existing user — issue session and redirect
+      await setSessionCookie({
+        sub: profile.id,
+        phone: profile.phone,
+        role: profile.role,
+        name: profile.name,
+      });
+      return {
+        ok: true,
+        status: "logged_in",
+        redirect: dashboardForRole(profile.role),
+        user: {
+          id: profile.id,
+          phone: profile.phone,
+          role: profile.role,
+          name: profile.name,
+        },
+      };
+    }
+
+    // New user — send to KYC or profile setup
+    if (role === "agent") {
+      // Store a temporary "verified phone" marker so submitKyc doesn't block
+      // (we insert a dummy used otp_session row to satisfy the grace-period check)
+      await supabaseAdmin.from("otp_sessions").insert([{
+        phone,
+        salt: "bypass",
+        otp_hash: "bypass",
+        intended_role: role,
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        is_used: true,
+        used_at: new Date().toISOString(),
+      }]);
+      return { ok: true, status: "needs_kyc", phone };
+    }
+
+    // Builder/Admin — go to profile setup
+    await supabaseAdmin.from("otp_sessions").insert([{
+      phone,
+      salt: "bypass",
+      otp_hash: "bypass",
+      intended_role: role,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      is_used: true,
+      used_at: new Date().toISOString(),
+    }]);
+    return { ok: true, status: "needs_profile_setup", phone, role };
+  } catch (err) {
+    console.error("loginWithPhone threw:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+

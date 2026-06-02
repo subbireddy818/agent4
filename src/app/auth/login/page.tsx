@@ -8,7 +8,7 @@ import {
   CheckCircle2, Loader2, KeyRound, Sparkles,
   MessageSquare, Upload, Clock, UserCheck,
 } from "lucide-react";
-import { requestOtp, verifyOtp, submitKyc, createProfile } from "@/app/auth/actions";
+import { requestOtp, verifyOtp, submitKyc, createProfile, loginWithPhone } from "@/app/auth/actions";
 
 function LoginContent() {
   const router = useRouter();
@@ -82,7 +82,7 @@ function LoginContent() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // STEP 1 → STEP 2  (request OTP)
+  // STEP 1 — phone entry → direct login (OTP PAUSED)
   // ---------------------------------------------------------------------------
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,24 +96,37 @@ function LoginContent() {
 
     setLoading(true);
     try {
-      const result = await requestOtp({ phone, role });
+      // OTP is paused — log in directly with phone number
+      const result = await loginWithPhone({ phone, role });
       if (!result.ok) {
-        setMessage(result.error || "Failed to send OTP.");
+        setMessage(result.error || "Login failed.");
         return;
       }
-      setStep(2);
-      // In dev, the action returns the OTP so a tester without WhatsApp can proceed.
-      if (result.devOtp) {
-        setSuccess(`OTP sent to ${phone}. (Dev mode — code: ${result.devOtp})`);
-      } else {
-        setSuccess(`OTP sent to ${phone} via WhatsApp.`);
+
+      if (result.status === "logged_in") {
+        try {
+          localStorage.setItem("agentsapp_logged_in_phone", result.user.phone);
+          localStorage.setItem("agentsapp_logged_in_user", result.user.name);
+          localStorage.setItem("agentsapp_logged_in_role", result.user.role);
+          localStorage.setItem("agentsapp_session_active", "1");
+        } catch { /* private mode */ }
+        window.location.assign(result.redirect);
+        return;
       }
+
+      if (result.status === "needs_kyc") {
+        setStep(3);
+        return;
+      }
+
+      if (result.status === "needs_profile_setup") {
+        setStep(6);
+        return;
+      }
+
+      setMessage(`Unexpected response: ${JSON.stringify(result).slice(0, 200)}`);
     } catch (err) {
-      setMessage(
-        err instanceof Error
-          ? err.message
-          : "Network error while sending OTP. Please try again."
-      );
+      setMessage(err instanceof Error ? err.message : "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -389,10 +402,10 @@ function LoginContent() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Sending OTP…</span>
+                  <span>Signing In…</span>
                 </>
               ) : (
-                <span>Send OTP via WhatsApp</span>
+                <span>Continue →</span>
               )}
             </button>
           </form>
