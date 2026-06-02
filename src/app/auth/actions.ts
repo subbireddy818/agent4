@@ -119,7 +119,7 @@ async function getRequestMeta() {
 async function setSessionCookie(payload: {
   sub: string;
   phone: string;
-  role: Role | "verification" | "operations";
+  role: Role | "super_admin" | "verification" | "operations";
   name: string;
 }) {
   const token = await signSession(payload);
