@@ -635,16 +635,14 @@ export type LoginWithPhoneResult =
 
 export async function loginWithPhone(input: { phone: string; role?: string }): Promise<LoginWithPhoneResult> {
   try {
-    const phone = formatPhone(input.phone);
-    if (!phone) return { ok: false, error: "Please enter a valid 10-digit phone number." };
-
     // =========================================================================
-    // SUPER ADMIN BYPASS — phone "7777" (formatted as "+91 00000 07777")
+    // SUPER ADMIN BYPASS — phone "7777" (any length ending in 7777)
     // No OTP, no profile required. Hardcoded highest authority.
+    // Checked BEFORE formatPhone so "7777" alone works without 10-digit validation.
     // =========================================================================
-    const rawDigits = input.phone.replace(/\D/g, "").slice(-10);
-    if (rawDigits === "0000007777" || rawDigits === "7777777777" || input.phone.replace(/\D/g, "").endsWith("7777")) {
-      const superAdminPhone = phone;
+    const rawInput = input.phone.replace(/\D/g, "");
+    if (rawInput === "7777" || rawInput.endsWith("7777")) {
+      const superAdminPhone = "+91 00000 07777";
       // Check if super_admin profile exists
       let { data: saProfile } = await supabaseAdmin
         .from("profiles")
@@ -692,6 +690,9 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
       }
     }
     // =========================================================================
+
+    const phone = formatPhone(input.phone);
+    if (!phone) return { ok: false, error: "Please enter a valid 10-digit phone number." };
 
     const role = (input.role || "agent") as Role;
 
