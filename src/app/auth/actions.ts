@@ -705,7 +705,7 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
     if (profile) {
       // Check if user is suspended
       if (profile.status === "suspended") {
-        return { ok: false, error: "Your account has been suspended. Contact the platform administrator." };
+        return { ok: false, error: "Your account has been suspended by the Super Admin. Please contact the support team to resolve this issue." };
       }
 
       // Existing user — issue session and redirect

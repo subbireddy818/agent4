@@ -11,8 +11,8 @@ export default function SuperAdminSidebar() {
   const menuItems = [
     { name: "Dashboard", href: "/super-admin/dashboard", icon: BarChart2 },
     { name: "Users", href: "/super-admin/users", icon: Users },
-    { name: "Projects", href: "/admin/projects", icon: Building2 },
-    { name: "Events", href: "/admin/events", icon: Calendar },
+    { name: "Projects", href: "/super-admin/projects", icon: Building2 },
+    { name: "Events", href: "/super-admin/events", icon: Calendar },
     { name: "Verification", href: "/admin/verification", icon: ShieldAlert },
   ];
 

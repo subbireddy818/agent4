@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { sessionCookieName, verifySession } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const ADMIN_ROLES = ["admin", "verification", "operations"];
+const ADMIN_ROLES = ["admin", "verification", "operations", "super_admin"];
 
-// Helper to verify admin access
+// Helper to verify admin access (includes super_admin)
 async function verifyAdmin() {
   const jar = await cookies();
   const token = jar.get(sessionCookieName)?.value;
