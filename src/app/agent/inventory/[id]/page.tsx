@@ -261,7 +261,7 @@ export default function ProjectDetails() {
       {/* Available Units Modal */}
       {showUnitsModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 text-slate-800">
+          <div className="w-full max-w-2xl max-h-[85vh] bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 text-slate-800 flex flex-col overflow-hidden">
             <button
               onClick={() => setShowUnitsModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-655 p-1 rounded-lg hover:bg-slate-50 transition"
@@ -275,7 +275,7 @@ export default function ProjectDetails() {
             </h2>
             <p className="text-xs text-slate-500 mb-6">Real-time availability status for bookings.</p>
 
-            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <div className="flex-1 overflow-auto border border-slate-200 rounded-xl min-h-0">
               <table className="w-full text-left text-xs font-semibold">
                 <thead className="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider text-[9px]">
                   <tr>
