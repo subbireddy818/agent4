@@ -73,13 +73,19 @@ export async function saveProjectAction(
         }
     }
 
+    const targetMeta = {
+      verification: recipientFilter || "all",
+      locations: targetLocations || []
+    };
+    const metaString = `\n\n<!-- TARGET: ${JSON.stringify(targetMeta)} -->`;
+
     // Insert an Event so it appears in the Agent "Launches" section
     await supabaseAdmin.from("events").insert({
         id: project.id, // Tie the event directly to the project ID
         title: `New Project: ${name}`,
         date: "Active",
         location: city,
-        description: `New ${type} project in ${location} by ${profile.agency_name || 'Builder'}. Starting at ${priceEstimate}.`
+        description: `New ${type} project in ${location} by ${profile.agency_name || 'Builder'}. Starting at ${priceEstimate}.${metaString}`
     });
 
     // Notify agents via WhatsApp based on filters

@@ -23,7 +23,7 @@ export async function getAgentEvents(phone: string): Promise<EventWithInvitation
   // Get agent profile
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("id")
+    .select("id, status, rera_number, location")
     .eq("phone", formattedPhone)
     .single();
 
@@ -47,14 +47,51 @@ export async function getAgentEvents(phone: string): Promise<EventWithInvitation
     (invitations || []).map((inv: any) => [inv.event_id, inv])
   );
 
-  return events.map((event: any) => {
+  // Filter events based on targeting
+  const filteredEvents = events.filter((event: any) => {
+    if (!event.description) return true;
+
+    // Check for targeting comment
+    const match = event.description.match(/<!-- TARGET: ({.*?}) -->/);
+    if (!match) return true;
+
+    try {
+      const target = JSON.parse(match[1]);
+
+      // 1. Verification filter
+      if (target.verification === "verified") {
+        if (profile.status !== "approved") return false;
+      } else if (target.verification === "rera") {
+        const isRera = profile.rera_number && profile.rera_number !== "N/A" && profile.rera_number.trim() !== "";
+        if (!isRera) return false;
+      }
+
+      // 2. Location filter
+      if (target.locations && target.locations.length > 0) {
+        if (!profile.location || !target.locations.includes(profile.location)) {
+          return false;
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing event target meta:", e);
+    }
+
+    return true;
+  });
+
+  return filteredEvents.map((event: any) => {
     const inv = invMap.get(event.id) as any;
+
+    // Clean target comment from description when sending to frontend
+    let cleanDesc = event.description || "";
+    cleanDesc = cleanDesc.replace(/\n\n<!-- TARGET: {.*?} -->/, "").trim();
+
     return {
       id: event.id,
       title: event.title,
       date: event.date,
       location: event.location,
-      description: event.description,
+      description: cleanDesc,
       event_type: event.event_type || "meet",
       qr_code_data: event.qr_code_data || null,
       invitation_status: inv ? "accepted" : null,
