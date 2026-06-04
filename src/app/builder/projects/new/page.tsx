@@ -10,13 +10,18 @@ import { useRouter } from "next/navigation";
 import { saveProjectAction } from "./actions";
 import { supabase } from "@/lib/supabase";
 import { HYDERABAD_LOCATIONS } from "@/lib/hyderabadLocations";
+import * as XLSX from "xlsx";
 
 interface ParsedUnit {
-  number: string;
-  config: string;
-  size: string;
-  price: string;
-  status: "AVAILABLE" | "HOLD" | "SOLD" | "BLOCKED";
+  unit_name: string;
+  status: string;
+  floor_number?: number | null;
+  tower?: string | null;
+  facing?: string | null;
+  carpet_area_sqft?: number | null;
+  price?: number | null;
+  bhk_type?: string | null;
+  details?: Record<string, any>;
 }
 
 export default function NewProject() {
@@ -82,6 +87,61 @@ export default function NewProject() {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       setFileName(selectedFile.name);
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = XLSX.read(bstr, { type: "binary" });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = XLSX.utils.sheet_to_json(ws);
+          
+          // Map dynamic Excel columns to our database fields
+          const units = data.map((row: any) => {
+            // Fuzzy search keys
+            const getVal = (patterns: string[]) => {
+              const key = Object.keys(row).find(k => 
+                patterns.some(p => k.toLowerCase().replace(/[\s_-]/g, "").includes(p))
+              );
+              return key ? row[key] : null;
+            };
+
+            const unitName = getVal(["apartment", "unitname", "unitno", "flat", "plot", "name", "number"]) || "Unit";
+            const block = getVal(["block", "tower"]);
+            const floorNo = getVal(["floorno", "floor"]);
+            const facing = getVal(["facing"]);
+            const sqft = getVal(["sqft", "area", "size", "sft"]);
+            const price = getVal(["price", "cost", "value"]);
+            const statusRaw = getVal(["status", "availability"]) || "available";
+
+            // Normalize status to: available, booked, sold, blocked, hold
+            let status = "available";
+            const sLower = String(statusRaw).toLowerCase();
+            if (sLower.includes("book")) status = "booked";
+            else if (sLower.includes("sold") || sLower.includes("close")) status = "sold";
+            else if (sLower.includes("block")) status = "blocked";
+            else if (sLower.includes("hold")) status = "hold";
+
+            return {
+              unit_name: String(unitName),
+              status: status,
+              floor_number: floorNo ? parseInt(String(floorNo)) : null,
+              tower: block ? String(block) : null,
+              facing: facing ? String(facing) : null,
+              carpet_area_sqft: sqft ? parseInt(String(sqft)) : null,
+              price: price ? parseFloat(String(price)) : null,
+              details: row // Keep original row data
+            };
+          });
+
+          setParsedUnits(units);
+        } catch (err) {
+          console.error("Error parsing Excel:", err);
+          alert("Error parsing Excel file. Please make sure it's valid.");
+        }
+      };
+      reader.readAsBinaryString(selectedFile);
     }
   };
 
@@ -91,7 +151,6 @@ export default function NewProject() {
 
     setSaving(true);
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
-    // Save project with no units for now
     const res = await saveProjectAction(
       phone, 
       name, 
@@ -99,7 +158,7 @@ export default function NewProject() {
       city, 
       price, 
       propType, 
-      [],
+      parsedUnits,
       recipientFilter,
       selectedLocations.length > 0 ? selectedLocations : undefined
     );
@@ -319,6 +378,12 @@ export default function NewProject() {
                   </div>
                   <div className="text-[8px] text-slate-500 mt-1">Accepts Excel (.xlsx), CSV up to 8MB</div>
                 </div>
+                {parsedUnits.length > 0 && (
+                  <div className="mt-2 flex items-center space-x-1.5 p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-700">
+                    <CheckCircle className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span className="text-[10px] font-bold">Successfully parsed {parsedUnits.length} inventory units/plots from Excel!</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-2 text-sm font-bold">

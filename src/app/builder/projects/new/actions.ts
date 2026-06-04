@@ -3,11 +3,15 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export interface ParsedUnit {
-  number: string;
-  config: string;
-  size: string;
-  price: string;
-  status: "AVAILABLE" | "HOLD" | "SOLD" | "BLOCKED";
+  unit_name: string;
+  status: string;
+  floor_number?: number | null;
+  tower?: string | null;
+  facing?: string | null;
+  carpet_area_sqft?: number | null;
+  price?: number | null;
+  bhk_type?: string | null;
+  details?: Record<string, any>;
 }
 
 export async function saveProjectAction(
@@ -57,9 +61,15 @@ export async function saveProjectAction(
     // Insert Units
     const unitsToInsert = units.map(u => ({
         project_id: project.id,
-        unit_name: u.number,
-        status: u.status.toLowerCase(),
-        details: { bhk: u.config, area: u.size, price: u.price }
+        unit_name: u.unit_name,
+        status: (u.status || "available").toLowerCase() as any,
+        floor_number: u.floor_number || null,
+        tower: u.tower || null,
+        facing: u.facing || null,
+        carpet_area_sqft: u.carpet_area_sqft || null,
+        price: u.price || null,
+        bhk_type: u.bhk_type || null,
+        details: u.details || {}
     }));
 
     if (unitsToInsert.length > 0) {

@@ -147,3 +147,28 @@ export async function updateUnitStatus(
     return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
+
+export async function getProjectInventoryUnits(
+  projectId: string
+): Promise<InventoryUnit[]> {
+  const { data: units } = await supabaseAdmin
+    .from("inventory_units")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("unit_name", { ascending: true });
+
+  return (units || []).map((u: any) => ({
+    id: u.id,
+    project_id: u.project_id,
+    unit_name: u.unit_name,
+    status: u.status,
+    floor_number: u.floor_number,
+    tower: u.tower,
+    facing: u.facing,
+    carpet_area_sqft: u.carpet_area_sqft,
+    price: u.price,
+    bhk_type: u.bhk_type,
+    possession_date: u.possession_date,
+    details: u.details || {},
+  }));
+}
