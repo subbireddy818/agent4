@@ -8,7 +8,7 @@ import {
   Briefcase, RefreshCw, X, ChevronRight, MapPin, Phone
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { updateBuilderCreditsAction } from "@/app/admin/verification/actions";
+import { updateBuilderCreditsAction, getPendingLinkRequests, handleLinkRequestAction } from "@/app/admin/verification/actions";
 
 interface Profile {
   id: string;
@@ -48,7 +48,7 @@ interface Lead {
   agent_name?: string;
 }
 
-type ActiveTab = "projects" | "agents" | "builders" | "leads" | "pending";
+type ActiveTab = "projects" | "agents" | "builders" | "leads" | "pending" | "builder_requests";
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,7 @@ export default function AdminDashboard() {
   const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [linkRequests, setLinkRequests] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>("projects");
 
   // Agent detail view
@@ -115,6 +116,11 @@ export default function AdminDashboard() {
           developer_name: p.profiles?.name || "Unknown Builder"
         })));
       }
+
+      const linkRes = await getPendingLinkRequests();
+      if (linkRes.success && linkRes.requests) {
+        setLinkRequests(linkRes.requests);
+      }
     } catch (err) {
       console.error("Error loading admin data:", err);
     } finally {
@@ -164,6 +170,7 @@ export default function AdminDashboard() {
     { key: "builders", label: "Builders", count: builders.length, icon: Building, color: "indigo" },
     { key: "agents", label: "Registered Agents", count: agents.length, icon: Users, color: "emerald" },
     { key: "pending", label: "Pending Verification", count: pendingProfiles.length, icon: ShieldAlert, color: "red" },
+    { key: "builder_requests", label: "Builder Link Requests", count: linkRequests.length, icon: ShieldAlert, color: "amber" },
   ];
 
   return (
@@ -444,6 +451,75 @@ export default function AdminDashboard() {
                         Review →
                       </Link>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* BUILDER LINK REQUESTS TAB */}
+        {activeTab === "builder_requests" && (
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+              Pending Builder Link Requests ({linkRequests.length})
+            </h3>
+            {linkRequests.length === 0 && !loading && (
+              <div className="text-center text-slate-400 text-xs py-8">No pending builder link requests.</div>
+            )}
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              {linkRequests.map((req) => (
+                <div key={req.id} className="p-5 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold hover:border-amber-300 transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-extrabold text-sm text-slate-900">{req.builder_name}</span>
+                      <span className="text-[10px] text-slate-500 font-bold bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">{req.builder_phone}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      Requested by: <span className="font-bold text-slate-800">{req.super_builder?.name || "Super Builder"}</span>
+                      {req.super_builder?.agency_name && <span className="text-slate-400"> ({req.super_builder.agency_name})</span>}
+                    </div>
+                    <div className="text-[9px] text-slate-400 mt-1.5">Submitted {timeAgo(req.created_at)}</div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Approve linking ${req.builder_name} to ${req.super_builder?.name || 'Super Builder'}?`)) return;
+                        setLoading(true);
+                        const res = await handleLinkRequestAction(req.id, true);
+                        if (res.success) {
+                          alert("Link request approved successfully!");
+                          await loadData();
+                        } else {
+                          alert("Error: " + res.error);
+                          setLoading(false);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center space-x-1 transition shadow-sm cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Approve Link</span>
+                    </button>
+                    
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Reject linking ${req.builder_name} to ${req.super_builder?.name || 'Super Builder'}?`)) return;
+                        setLoading(true);
+                        const res = await handleLinkRequestAction(req.id, false);
+                        if (res.success) {
+                          alert("Link request rejected.");
+                          await loadData();
+                        } else {
+                          alert("Error: " + res.error);
+                          setLoading(false);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-xl border border-red-200 flex items-center space-x-1 transition cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Reject</span>
+                    </button>
                   </div>
                 </div>
               ))}

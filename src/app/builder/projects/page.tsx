@@ -65,16 +65,36 @@ export default function BuilderProjects() {
 
       if (!profileData) return;
 
-      // Then get their projects
-      const { data: projectsData } = await supabase
+      // Fetch owned projects
+      let combinedProjects: any[] = [];
+      const { data: ownedProjects } = await supabase
         .from("projects")
         .select("*")
         .eq("developer_id", profileData.id)
         .order("created_at", { ascending: false });
 
-      if (projectsData) {
-        setProjects(projectsData);
+      if (ownedProjects) {
+        combinedProjects = [...ownedProjects];
       }
+
+      // Fetch projects shared by Super Builder
+      const { data: sharesData } = await supabase
+        .from("project_shares")
+        .select("project_id, projects(*)")
+        .eq("builder_id", profileData.id)
+        .eq("status", "active");
+
+      if (sharesData) {
+        sharesData.forEach((s: any) => {
+          if (s.projects && !combinedProjects.some(p => p.id === s.projects.id)) {
+            combinedProjects.push(s.projects);
+          }
+        });
+      }
+
+      // Sort combined projects by created_at desc
+      combinedProjects.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setProjects(combinedProjects);
     } catch (err) {
       console.error("Error loading builder projects:", err);
     } finally {

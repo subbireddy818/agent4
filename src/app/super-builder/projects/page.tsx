@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, Loader2, MapPin, Share2 } from "lucide-react";
+import { Building2, Loader2, MapPin, Share2, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
@@ -56,24 +56,33 @@ export default function SuperBuilderProjects() {
 
   return (
     <div className="space-y-6 text-slate-800">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-center justify-between">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">My Projects</h1>
           <p className="text-sm text-slate-500">All projects you own. Share them with builders from the Share Projects page.</p>
         </div>
-        <Link
-          href="/super-builder/projects/share"
-          className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md transition uppercase tracking-wider flex items-center space-x-2"
-        >
-          <Share2 className="w-4 h-4" />
-          <span>Share</span>
-        </Link>
+        <div className="flex items-center space-x-2">
+          <Link
+            href="/super-builder/projects/new"
+            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md transition uppercase tracking-wider flex items-center space-x-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Project</span>
+          </Link>
+          <Link
+            href="/super-builder/projects/share"
+            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider flex items-center space-x-2"
+          >
+            <Share2 className="w-4 h-4 text-slate-500" />
+            <span>Share</span>
+          </Link>
+        </div>
       </div>
 
       {projects.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
           <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-sm text-slate-500">No projects yet. Add projects from the Builder portal.</p>
+          <p className="text-sm text-slate-500">No projects yet. Click "Add Project" to create your first project.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

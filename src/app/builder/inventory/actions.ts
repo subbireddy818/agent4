@@ -37,33 +37,50 @@ export async function getBuilderProjects(phone: string): Promise<BuilderProject[
 
   if (!profile) return [];
 
-  const { data: projects } = await supabaseAdmin
+  // Fetch owned projects
+  let combined: (BuilderProject & { created_at?: string })[] = [];
+  const { data: owned } = await supabaseAdmin
     .from("projects")
-    .select("id, name, location")
-    .eq("developer_id", profile.id)
-    .order("created_at", { ascending: false });
+    .select("id, name, location, created_at")
+    .eq("developer_id", profile.id);
 
-  return projects || [];
+  if (owned) {
+    combined = owned.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      location: p.location,
+      created_at: p.created_at
+    }));
+  }
+
+  // Fetch projects shared by Super Builder
+  const { data: shared } = await supabaseAdmin
+    .from("project_shares")
+    .select("project_id, projects(id, name, location, created_at)")
+    .eq("builder_id", profile.id)
+    .eq("status", "active");
+
+  if (shared) {
+    shared.forEach((s: any) => {
+      if (s.projects && !combined.some(p => p.id === s.projects.id)) {
+        combined.push({
+          id: s.projects.id,
+          name: s.projects.name,
+          location: s.projects.location,
+          created_at: s.projects.created_at
+        });
+      }
+    });
+  }
+
+  // Sort combined projects by created_at desc
+  combined.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+  return combined.map(p => ({ id: p.id, name: p.name, location: p.location }));
 }
 
 export async function getInventoryUnits(phone: string): Promise<InventoryUnit[]> {
-  const digits = phone.replace(/\D/g, "");
-  const last10 = digits.slice(-10);
-  const formattedPhone = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
-
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("phone", formattedPhone)
-    .single();
-
-  if (!profile) return [];
-
-  const { data: projects } = await supabaseAdmin
-    .from("projects")
-    .select("id, name")
-    .eq("developer_id", profile.id);
-
+  const projects = await getBuilderProjects(phone);
   if (!projects || projects.length === 0) return [];
 
   const projectIds = projects.map((p: any) => p.id);

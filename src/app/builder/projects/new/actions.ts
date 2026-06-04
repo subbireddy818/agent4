@@ -39,7 +39,7 @@ export async function saveProjectAction(
       if (session) {
         const { data: pById } = await supabaseAdmin
           .from("profiles")
-          .select("id, agency_name, credits")
+          .select("id, agency_name, credits, parent_id")
           .eq("id", session.sub)
           .maybeSingle();
         
@@ -48,7 +48,7 @@ export async function saveProjectAction(
         } else if (session.phone) {
           const { data: pByPhone } = await supabaseAdmin
             .from("profiles")
-            .select("id, agency_name, credits")
+            .select("id, agency_name, credits, parent_id")
             .eq("phone", session.phone)
             .maybeSingle();
           if (pByPhone) {
@@ -68,7 +68,7 @@ export async function saveProjectAction(
         const formattedPhone = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
         const { data: pByPhone } = await supabaseAdmin
           .from("profiles")
-          .select("id, agency_name, credits")
+          .select("id, agency_name, credits, parent_id")
           .eq("phone", formattedPhone)
           .maybeSingle();
         if (pByPhone) {
@@ -102,7 +102,21 @@ export async function saveProjectAction(
     }
 
     const cost = agents ? agents.length : 0;
-    const builderCredits = profile.credits || 0;
+    
+    // Resolve credits validation and deduction from parent super builder if sub-builder
+    let targetProfile = profile;
+    let builderCredits = profile.credits || 0;
+    if (profile.parent_id) {
+      const { data: parentProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, credits")
+        .eq("id", profile.parent_id)
+        .maybeSingle();
+      if (parentProfile) {
+        targetProfile = parentProfile;
+        builderCredits = parentProfile.credits || 0;
+      }
+    }
 
     if (builderCredits < cost) {
       return { 
@@ -111,11 +125,11 @@ export async function saveProjectAction(
       };
     }
 
-    // Deduct credits
+    // Deduct credits from target profile (builder or their parent Super Builder)
     const { error: deductError } = await supabaseAdmin
       .from("profiles")
       .update({ credits: builderCredits - cost })
-      .eq("id", profile.id);
+      .eq("id", targetProfile.id);
 
     if (deductError) {
       console.error("Error deducting builder credits:", deductError);
