@@ -59,18 +59,24 @@ export async function saveProjectAction(
     }
 
     // Insert Units
-    const unitsToInsert = units.map(u => ({
-        project_id: project.id,
-        unit_name: u.unit_name,
-        status: (u.status || "available").toLowerCase() as any,
-        floor_number: u.floor_number || null,
-        tower: u.tower || null,
-        facing: u.facing || null,
-        carpet_area_sqft: u.carpet_area_sqft || null,
-        price: u.price || null,
-        bhk_type: u.bhk_type || null,
-        details: u.details || {}
-    }));
+    const unitsToInsert = units.map(u => {
+        const detailsMerged = {
+            ...(u.details || {}),
+            floor_number: u.floor_number || null,
+            tower: u.tower || null,
+            facing: u.facing || null,
+            carpet_area_sqft: u.carpet_area_sqft || null,
+            price: u.price || null,
+            bhk_type: u.bhk_type || null,
+            bhk: u.bhk_type || null,
+        };
+        return {
+            project_id: project.id,
+            unit_name: u.unit_name,
+            status: (u.status || "available").toLowerCase() as any,
+            details: detailsMerged
+        };
+    });
 
     if (unitsToInsert.length > 0) {
         const { error: unitsError } = await supabaseAdmin

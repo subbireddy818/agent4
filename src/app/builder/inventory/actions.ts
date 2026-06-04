@@ -75,21 +75,24 @@ export async function getInventoryUnits(phone: string): Promise<InventoryUnit[]>
     .in("project_id", projectIds)
     .order("created_at", { ascending: false });
 
-  return (units || []).map((u: any) => ({
-    id: u.id,
-    project_id: u.project_id,
-    project_name: projectMap.get(u.project_id) || "Unknown",
-    unit_name: u.unit_name,
-    status: u.status,
-    floor_number: u.floor_number,
-    tower: u.tower,
-    facing: u.facing,
-    carpet_area_sqft: u.carpet_area_sqft,
-    price: u.price,
-    bhk_type: u.bhk_type,
-    possession_date: u.possession_date,
-    details: u.details || {},
-  }));
+  return (units || []).map((u: any) => {
+    const d = u.details || {};
+    return {
+      id: u.id,
+      project_id: u.project_id,
+      project_name: projectMap.get(u.project_id) || "Unknown",
+      unit_name: u.unit_name,
+      status: u.status,
+      floor_number: u.floor_number !== undefined && u.floor_number !== null ? u.floor_number : (d.floor_number ?? null),
+      tower: u.tower !== undefined && u.tower !== null ? u.tower : (d.tower ?? null),
+      facing: u.facing !== undefined && u.facing !== null ? u.facing : (d.facing ?? null),
+      carpet_area_sqft: u.carpet_area_sqft !== undefined && u.carpet_area_sqft !== null ? u.carpet_area_sqft : (d.carpet_area_sqft ?? null),
+      price: u.price !== undefined && u.price !== null ? u.price : (d.price ?? null),
+      bhk_type: u.bhk_type !== undefined && u.bhk_type !== null ? u.bhk_type : (d.bhk_type ?? d.bhk ?? null),
+      possession_date: u.possession_date !== undefined && u.possession_date !== null ? u.possession_date : (d.possession_date ?? null),
+      details: d,
+    };
+  });
 }
 
 export interface AddUnitInput {
@@ -113,14 +116,16 @@ export async function addInventoryUnit(input: AddUnitInput): Promise<{ ok: boole
         project_id: input.project_id,
         unit_name: input.unit_name,
         status: input.status || "available",
-        floor_number: input.floor_number || null,
-        tower: input.tower || null,
-        facing: input.facing || null,
-        carpet_area_sqft: input.carpet_area_sqft || null,
-        price: input.price || null,
-        bhk_type: input.bhk_type || null,
-        possession_date: input.possession_date || null,
-        details: {},
+        details: {
+          floor_number: input.floor_number || null,
+          tower: input.tower || null,
+          facing: input.facing || null,
+          carpet_area_sqft: input.carpet_area_sqft || null,
+          price: input.price || null,
+          bhk_type: input.bhk_type || null,
+          bhk: input.bhk_type || null,
+          possession_date: input.possession_date || null,
+        },
       },
     ]);
 
@@ -157,18 +162,21 @@ export async function getProjectInventoryUnits(
     .eq("project_id", projectId)
     .order("unit_name", { ascending: true });
 
-  return (units || []).map((u: any) => ({
-    id: u.id,
-    project_id: u.project_id,
-    unit_name: u.unit_name,
-    status: u.status,
-    floor_number: u.floor_number,
-    tower: u.tower,
-    facing: u.facing,
-    carpet_area_sqft: u.carpet_area_sqft,
-    price: u.price,
-    bhk_type: u.bhk_type,
-    possession_date: u.possession_date,
-    details: u.details || {},
-  }));
+  return (units || []).map((u: any) => {
+    const d = u.details || {};
+    return {
+      id: u.id,
+      project_id: u.project_id,
+      unit_name: u.unit_name,
+      status: u.status,
+      floor_number: u.floor_number !== undefined && u.floor_number !== null ? u.floor_number : (d.floor_number ?? null),
+      tower: u.tower !== undefined && u.tower !== null ? u.tower : (d.tower ?? null),
+      facing: u.facing !== undefined && u.facing !== null ? u.facing : (d.facing ?? null),
+      carpet_area_sqft: u.carpet_area_sqft !== undefined && u.carpet_area_sqft !== null ? u.carpet_area_sqft : (d.carpet_area_sqft ?? null),
+      price: u.price !== undefined && u.price !== null ? u.price : (d.price ?? null),
+      bhk_type: u.bhk_type !== undefined && u.bhk_type !== null ? u.bhk_type : (d.bhk_type ?? d.bhk ?? null),
+      possession_date: u.possession_date !== undefined && u.possession_date !== null ? u.possession_date : (d.possession_date ?? null),
+      details: d,
+    };
+  });
 }
