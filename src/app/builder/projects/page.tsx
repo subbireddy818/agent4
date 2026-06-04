@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Building2, Loader2, MapPin, Trash2, Users, Search, X, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { deleteProjectAction, getFollowersForEntity, FollowerInfo } from "./actions";
@@ -180,9 +181,12 @@ export default function BuilderProjects() {
                     <Users className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Followers</span>
                   </button>
-                  <button className="px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 text-indigo-600 rounded-lg text-xs font-bold transition">
+                  <Link
+                    href={`/builder/inventory?project_id=${project.id}`}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 text-indigo-600 rounded-lg text-xs font-bold transition flex items-center justify-center"
+                  >
                     View Units
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

@@ -61,6 +61,8 @@ export default function BuilderInventoryPage() {
     possession_date: "",
   });
 
+  const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
+
   useEffect(() => {
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
     Promise.all([getInventoryUnits(phone), getBuilderProjects(phone)]).then(
@@ -70,6 +72,11 @@ export default function BuilderInventoryPage() {
         setLoading(false);
       }
     );
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setFilterProjectId(params.get("project_id"));
+    }
   }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -290,6 +297,28 @@ export default function BuilderInventoryPage() {
         </div>
       </div>
 
+      {filterProjectId && (
+        <div className="flex items-center justify-between p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl">
+          <div className="flex items-center space-x-2 text-xs font-bold text-indigo-700">
+            <span>Showing units only for: </span>
+            <span className="bg-indigo-100 px-2 py-0.5 rounded font-extrabold">
+              {projects.find(p => p.id === filterProjectId)?.name || "Selected Project"}
+            </span>
+          </div>
+          <button 
+            onClick={() => {
+              setFilterProjectId(null);
+              if (typeof window !== "undefined") {
+                window.history.replaceState({}, "", "/builder/inventory");
+              }
+            }}
+            className="text-xs text-red-500 hover:text-red-700 font-extrabold uppercase tracking-wider"
+          >
+            Clear Filter
+          </button>
+        </div>
+      )}
+
       {/* Units Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -308,15 +337,15 @@ export default function BuilderInventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {units.length === 0 && (
+              {((filterProjectId ? units.filter(u => u.project_id === filterProjectId) : units).length === 0) && (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                     <Building className="w-5 h-5 mx-auto mb-2" />
-                    No units added yet. Click "Add Unit" to get started.
+                    No units added yet for this filter.
                   </td>
                 </tr>
               )}
-              {units.map((unit) => (
+              {(filterProjectId ? units.filter(u => u.project_id === filterProjectId) : units).map((unit) => (
                 <tr key={unit.id} className="hover:bg-slate-50/50 transition">
                   <td className="px-4 py-3 font-bold text-slate-900">{unit.unit_name}</td>
                   <td className="px-4 py-3 text-slate-600">{unit.project_name}</td>

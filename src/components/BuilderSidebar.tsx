@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Building2, PlusCircle, Megaphone, Calendar,
-  LogOut, RefreshCw, BarChart3, Users, User, Crown
+  LogOut, RefreshCw, BarChart3, Users, User, Crown, Layers
 } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
@@ -14,6 +14,7 @@ export default function BuilderSidebar() {
   const menuItems = [
     { name: "Overview", href: "/builder/dashboard", icon: BarChart3 },
     { name: "My Projects", href: "/builder/projects", icon: Building2 },
+    { name: "My Inventory", href: "/builder/inventory", icon: Layers },
     { name: "Add Project", href: "/builder/projects/new", icon: PlusCircle },
     { name: "Campaigns", href: "/builder/campaigns", icon: Megaphone },
     { name: "My Events", href: "/builder/events", icon: Calendar },
@@ -52,7 +53,7 @@ export default function BuilderSidebar() {
                 href={item.href}
                 className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                   isActive 
-                    ? "bg-indigo-50 text-white shadow-sm" 
+                    ? "bg-indigo-50 text-indigo-600 shadow-sm" 
                     : "hover:bg-slate-50 hover:text-[#0f172a]"
                 }`}
               >
