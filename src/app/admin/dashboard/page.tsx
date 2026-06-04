@@ -8,6 +8,7 @@ import {
   Briefcase, RefreshCw, X, ChevronRight, MapPin, Phone
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { updateBuilderCreditsAction } from "@/app/admin/verification/actions";
 
 interface Profile {
   id: string;
@@ -317,7 +318,7 @@ export default function AdminDashboard() {
         {activeTab === "builders" && (
           <div>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Builders ({builders.length})
+              Builders ({builders.length}) — Click on a builder to manage credits & projects
             </h3>
             <div className="space-y-3 max-h-[500px] overflow-y-auto">
               {builders.length === 0 && !loading && (
@@ -345,6 +346,10 @@ export default function AdminDashboard() {
                         )}
                       </div>
                       <div className="text-right flex items-center space-x-3">
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1 text-indigo-700 text-center min-w-[70px]">
+                          <div className="text-[8px] uppercase font-bold text-indigo-400 tracking-wider">Credits</div>
+                          <div className="font-extrabold text-sm leading-tight">{builder.credits ?? 0}</div>
+                        </div>
                         <div>
                           <div className="text-[9px] text-slate-400">Projects</div>
                           <div className="font-extrabold text-slate-900">{builderProjectCount}</div>
@@ -616,19 +621,16 @@ export default function AdminDashboard() {
                   onClick={async () => {
                     setUpdatingCredits(true);
                     const creditsVal = parseInt(creditsInput) || 0;
-                    const { error } = await supabase
-                      .from("profiles")
-                      .update({ credits: creditsVal })
-                      .eq("id", selectedBuilder.id);
+                    const res = await updateBuilderCreditsAction(selectedBuilder.id, creditsVal);
 
                     setUpdatingCredits(false);
-                    if (!error) {
+                    if (res.success) {
                       // Update local states
                       setBuilders(prev => prev.map(b => b.id === selectedBuilder.id ? { ...b, credits: creditsVal } : b));
                       setSelectedBuilder(prev => prev ? { ...prev, credits: creditsVal } : null);
                       alert("Credits updated successfully!");
                     } else {
-                      alert("Failed to update credits: " + error.message);
+                      alert("Failed to update credits: " + res.error);
                     }
                   }}
                   className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold transition disabled:opacity-70 flex items-center space-x-1.5"

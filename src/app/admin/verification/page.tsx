@@ -279,6 +279,11 @@ export default function VerificationQueue() {
                   )}
                 </div>
                 <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                  {req.role === "builder" && (
+                    <span className="text-[9px] bg-indigo-50 border border-indigo-200 text-indigo-600 px-2 py-0.5 rounded font-bold">
+                      {req.credits ?? 0} Credits
+                    </span>
+                  )}
                   {req.status === "Approved" && (
                     <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-600 px-2 py-0.5 rounded font-bold">{req.assignedCpId}</span>
                   )}
