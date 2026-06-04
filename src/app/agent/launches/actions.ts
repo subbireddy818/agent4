@@ -23,7 +23,7 @@ export async function getAgentEvents(phone: string): Promise<EventWithInvitation
   // Get agent profile
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("id, status, rera_number, location")
+    .select("id, status, rera_number, location, is_rera_approved")
     .eq("phone", formattedPhone)
     .single();
 
