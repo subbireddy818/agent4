@@ -122,3 +122,19 @@ export async function rejectAgentAction(id: string, phone: string, reason: strin
     return { success: false, error: err.message };
   }
 }
+
+export async function toggleReraApprovalAction(profileId: string, isApproved: boolean) {
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_rera_approved: isApproved })
+      .eq("id", profileId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in toggleReraApprovalAction:", err);
+    return { success: false, error: err.message };
+  }
+}
+

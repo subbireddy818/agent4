@@ -5,7 +5,7 @@ import {
   Check, X, FileText, ShieldAlert, 
   ArrowRight, ShieldCheck, Eye, Loader2, Award, Upload, Download, ExternalLink
 } from "lucide-react";
-import { getVerificationRequests, approveAgentAction, rejectAgentAction, requestDocsAction } from "./actions";
+import { getVerificationRequests, approveAgentAction, rejectAgentAction, requestDocsAction, toggleReraApprovalAction } from "./actions";
 
 interface AgentRequest {
   id: string;
@@ -14,6 +14,7 @@ interface AgentRequest {
   phone: string;
   email: string;
   rera: string;
+  isReraApproved?: boolean;
   role: string;
   status: "Pending" | "Docs Required" | "Docs Uploaded" | "Approved" | "Rejected";
   rejectionReason?: string;
@@ -73,6 +74,7 @@ export default function VerificationQueue() {
             phone: p.phone,
             email: p.email || "No Email",
             rera: p.rera_number || "N/A",
+            isReraApproved: p.is_rera_approved || false,
             role: p.role,
             status: statusStr,
             rejectionReason: p.rejection_reason,
@@ -287,11 +289,40 @@ export default function VerificationQueue() {
         <div className="lg:col-span-7">
           {selectedRequest ? (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-md space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">{selectedRequest.name}</h3>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">Agency: {selectedRequest.agency}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Phone: {selectedRequest.phone} · Email: {selectedRequest.email}</p>
-                <p className="text-xs text-[#16c47f] font-bold mt-1 uppercase">RERA: {selectedRequest.rera}</p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{selectedRequest.name}</h3>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">Agency: {selectedRequest.agency}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Phone: {selectedRequest.phone} · Email: {selectedRequest.email}</p>
+                  <p className="text-xs text-[#16c47f] font-bold mt-1 uppercase">RERA: {selectedRequest.rera}</p>
+                </div>
+
+                {selectedRequest.status === "Approved" && (
+                  <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer">
+                      <input 
+                        type="checkbox"
+                        checked={selectedRequest.isReraApproved || false}
+                        onChange={async (e) => {
+                          const checked = e.target.checked;
+                          // Optimistic update
+                          setRequests(prev => prev.map(r => r.id === selectedRequest.id ? { ...r, isReraApproved: checked } : r));
+                          setSelectedRequest(prev => prev ? { ...prev, isReraApproved: checked } : null);
+
+                          const res = await toggleReraApprovalAction(selectedRequest.id, checked);
+                          if (!res.success) {
+                            // Revert on failure
+                            setRequests(prev => prev.map(r => r.id === selectedRequest.id ? { ...r, isReraApproved: !checked } : r));
+                            setSelectedRequest(prev => prev ? { ...prev, isReraApproved: !checked } : null);
+                            alert("Failed to update RERA approval status: " + res.error);
+                          }
+                        }}
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-350 cursor-pointer"
+                      />
+                      <span>RERA Approved</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Uploaded Documents */}
