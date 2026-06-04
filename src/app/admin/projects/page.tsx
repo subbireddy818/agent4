@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Building2, Loader2, MapPin, Users, Crown, Clock, Search, X, ChevronDown, ChevronUp, Pencil, Trash2, Plus, Save, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getProjectInventoryUnits } from "@/app/builder/inventory/actions";
+import * as XLSX from "xlsx";
 
 interface ProjectWithDetails {
   id: string;
@@ -81,6 +82,42 @@ export default function AdminProjectsPage() {
     } finally {
       setLoadingUnits(false);
     }
+  }
+
+  function handleDownloadExcel() {
+    if (!unitsModalProject || !selectedProjectUnits || selectedProjectUnits.length === 0) return;
+    
+    // Format the data for the Excel sheet
+    const dataToExport = selectedProjectUnits.map((u) => {
+      // Find any extra details (excluding known keys)
+      const knownKeys = ["apartment", "unitname", "unitno", "flat", "plot", "name", "number", "block", "tower", "floorno", "floor", "facing", "sqft", "area", "size", "sft", "price", "cost", "value", "status", "availability"];
+      const extraDetails = Object.entries(u.details || {})
+        .filter(([k]) => !knownKeys.some(p => k.toLowerCase().replace(/[\s_-]/g, "").includes(p)))
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+
+      return {
+        "Unit / Plot": u.unit_name,
+        "Block / Tower": u.tower || "—",
+        "Floor": u.floor_number !== null ? u.floor_number : "—",
+        "Facing": u.facing || "—",
+        "Area (Sqft)": u.carpet_area_sqft || "—",
+        "Price": u.price || "—",
+        "BHK Type": u.bhk_type || "—",
+        "Status": u.status,
+        "Other Details": extraDetails || "—"
+      };
+    });
+
+    // Create a worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Create a workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+
+    // Generate buffer and trigger download
+    XLSX.writeFile(workbook, `${unitsModalProject.name.replace(/[^a-zA-Z0-9]/g, "_")}_inventory.xlsx`);
   }
 
   async function loadProjects() {
@@ -494,6 +531,15 @@ export default function AdminProjectsPage() {
                   </button>
                 )}
               </div>
+              {selectedProjectUnits.length > 0 && (
+                <button
+                  onClick={handleDownloadExcel}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition uppercase tracking-wider flex items-center justify-center space-x-2 shrink-0"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Download Excel</span>
+                </button>
+              )}
             </div>
 
             {/* Body */}
