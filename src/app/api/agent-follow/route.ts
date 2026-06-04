@@ -54,15 +54,20 @@ export async function GET(req: NextRequest) {
     // 2. Fetch builder's projects
     const { data: projects } = await supabaseAdmin
       .from("projects")
-      .select("id")
+      .select("id, name")
       .eq("developer_id", session.sub);
 
     let projectFollows: any[] = [];
+    const projectMap = new Map<string, string>();
+    if (projects) {
+      projects.forEach((p) => projectMap.set(p.id, p.name));
+    }
+
     if (projects && projects.length > 0) {
       const projectIds = projects.map((p) => p.id);
       const { data: rsvps } = await supabaseAdmin
         .from("rsvps")
-        .select("agent_id, created_at, profiles:profiles(name, phone, agency_name, location)")
+        .select("agent_id, event_id, created_at, profiles:profiles(name, phone, agency_name, location)")
         .in("event_id", projectIds);
       if (rsvps) {
         projectFollows = rsvps;
@@ -70,25 +75,36 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Merge direct and project follows (de-duplicate on agent_id)
-    const mergedMap = new Map<string, { id: string; created_at: string; profiles: any }>();
+    const mergedMap = new Map<string, { id: string; created_at: string; profiles: any; followedProjects: string[] }>();
 
     if (directFollows) {
       directFollows.forEach((df: any) => {
         mergedMap.set(df.agent_id, {
           id: df.agent_id,
           created_at: df.created_at,
-          profiles: df.profiles || null
+          profiles: df.profiles || null,
+          followedProjects: []
         });
       });
     }
 
     if (projectFollows) {
       projectFollows.forEach((pf: any) => {
-        if (!mergedMap.has(pf.agent_id)) {
+        const projName = projectMap.get(pf.event_id) || "Unknown Project";
+        const existing = mergedMap.get(pf.agent_id);
+        if (existing) {
+          if (!existing.followedProjects.includes(projName)) {
+            existing.followedProjects.push(projName);
+          }
+          if (new Date(pf.created_at).getTime() > new Date(existing.created_at).getTime()) {
+            existing.created_at = pf.created_at;
+          }
+        } else {
           mergedMap.set(pf.agent_id, {
             id: pf.agent_id,
             created_at: pf.created_at,
-            profiles: pf.profiles || null
+            profiles: pf.profiles || null,
+            followedProjects: [projName]
           });
         }
       });

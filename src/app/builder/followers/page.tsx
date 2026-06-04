@@ -9,6 +9,7 @@ interface Follower {
   agent_id: string;
   created_at: string;
   profiles: { name: string; phone: string; agency_name: string; location: string };
+  followedProjects?: string[];
 }
 
 export default function BuilderFollowersPage() {
@@ -48,6 +49,16 @@ export default function BuilderFollowersPage() {
                 <div>
                   <p className="text-sm font-extrabold text-slate-900">{f.profiles?.name || "Agent"}</p>
                   <p className="text-xs text-slate-500">{f.profiles?.agency_name || "Independent"} · {maskPhone(f.profiles?.phone)}{f.profiles?.location && <span className="inline-flex items-center ml-2"><MapPin className="w-3 h-3 mr-0.5" />{f.profiles.location}</span>}</p>
+                  {f.followedProjects && f.followedProjects.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Followed:</span>
+                      {f.followedProjects.map((p, idx) => (
+                        <span key={idx} className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full font-bold">
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center space-x-1 text-[10px] text-slate-400"><Clock className="w-3 h-3" /><span>Followed {timeAgo(f.created_at)}</span></div>
