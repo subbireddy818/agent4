@@ -52,7 +52,7 @@ export default function NewProject() {
         if (recipientFilter === "verified") {
           query = query.eq("status", "approved");
         } else if (recipientFilter === "rera") {
-          query = query.not("rera_number", "is", null).neq("rera_number", "N/A").neq("rera_number", "");
+          query = query.eq("is_rera_approved", true);
         }
 
         if (selectedLocations.length > 0) {

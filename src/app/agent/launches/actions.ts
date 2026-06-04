@@ -62,8 +62,7 @@ export async function getAgentEvents(phone: string): Promise<EventWithInvitation
       if (target.verification === "verified") {
         if (profile.status !== "approved") return false;
       } else if (target.verification === "rera") {
-        const isRera = profile.rera_number && profile.rera_number !== "N/A" && profile.rera_number.trim() !== "";
-        if (!isRera) return false;
+        if (!profile.is_rera_approved) return false;
       }
 
       // 2. Location filter
