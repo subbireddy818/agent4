@@ -1,15 +1,37 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Building2, PlusCircle, Megaphone, Calendar,
-  LogOut, RefreshCw, BarChart3, Users, User, Crown, Layers
+  LogOut, RefreshCw, BarChart3, Users, User, Crown, Layers, Coins
 } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
 export default function BuilderSidebar() {
   const pathname = usePathname();
+  const [credits, setCredits] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.profile) {
+            setCredits(data.profile.credits ?? 0);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching builder profile for credits:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProfile();
+  }, []);
 
   const menuItems = [
     { name: "Overview", href: "/builder/dashboard", icon: BarChart3 },
@@ -67,6 +89,27 @@ export default function BuilderSidebar() {
 
       {/* Sidebar Footer & Role Switcher */}
       <div className="space-y-4">
+        {/* Credits Widget */}
+        <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-650/20 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] uppercase font-extrabold text-indigo-200 tracking-wider">Account Credits</span>
+            <Coins className="w-4 h-4 text-indigo-200 animate-pulse" />
+          </div>
+          <div className="flex items-baseline space-x-1.5">
+            {loading ? (
+              <span className="h-6 w-16 bg-indigo-500/50 rounded animate-pulse inline-block"></span>
+            ) : (
+              <span className="text-xl font-extrabold tracking-tight">
+                {credits !== null ? credits.toLocaleString() : "0"}
+              </span>
+            )}
+            <span className="text-[10px] font-semibold text-indigo-200 uppercase tracking-wider">Credits</span>
+          </div>
+          <div className="text-[9px] text-indigo-100/80 leading-normal">
+            Cost: 1 credit per targeted agent. Keep credits topped up via admin.
+          </div>
+        </div>
+
         {/* Quick Role Switcher for demo */}
         <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[10px] font-bold text-[#64748b]">
           <div className="mb-2 flex items-center space-x-1 uppercase tracking-wider text-slate-500 font-extrabold">

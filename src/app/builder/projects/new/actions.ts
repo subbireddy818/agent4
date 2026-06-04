@@ -33,11 +33,54 @@ export async function saveProjectAction(
     // Get builder profile
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("id, agency_name")
+      .select("id, agency_name, credits")
       .eq("phone", formattedPhone)
       .single();
 
     if (!profile) return { ok: false, error: "Builder profile not found" };
+
+    // Get the targeted agents count for credits validation
+    let agentQuery = supabaseAdmin
+      .from("profiles")
+      .select("phone")
+      .eq("role", "agent");
+
+    if (recipientFilter === "verified") {
+      agentQuery = agentQuery.eq("status", "approved");
+    } else if (recipientFilter === "rera") {
+      agentQuery = agentQuery.eq("is_rera_approved", true);
+    }
+
+    if (targetLocations && targetLocations.length > 0) {
+      agentQuery = agentQuery.in("location", targetLocations);
+    }
+
+    const { data: agents, error: agentsError } = await agentQuery;
+    if (agentsError) {
+      console.error("Error querying targeted agents:", agentsError);
+      return { ok: false, error: "Failed to estimate targeted agents" };
+    }
+
+    const cost = agents ? agents.length : 0;
+    const builderCredits = profile.credits || 0;
+
+    if (builderCredits < cost) {
+      return { 
+        ok: false, 
+        error: `Insufficient credits! Launching this project targets ${cost} agents but you only have ${builderCredits} credits.` 
+      };
+    }
+
+    // Deduct credits
+    const { error: deductError } = await supabaseAdmin
+      .from("profiles")
+      .update({ credits: builderCredits - cost })
+      .eq("id", profile.id);
+
+    if (deductError) {
+      console.error("Error deducting builder credits:", deductError);
+      return { ok: false, error: "Failed to process credit deduction" };
+    }
 
     // Insert Project
     const { data: project, error: projectError } = await supabaseAdmin
@@ -103,24 +146,6 @@ export async function saveProjectAction(
         location: city,
         description: `New ${type} project in ${location} by ${profile.agency_name || 'Builder'}. Starting at ${priceEstimate}.${metaString}`
     });
-
-    // Notify agents via WhatsApp based on filters
-    let query = supabaseAdmin
-        .from("profiles")
-        .select("phone")
-        .eq("role", "agent");
-
-    if (recipientFilter === "verified") {
-      query = query.eq("status", "approved");
-    } else if (recipientFilter === "rera") {
-      query = query.eq("is_rera_approved", true);
-    }
-
-    if (targetLocations && targetLocations.length > 0) {
-      query = query.in("location", targetLocations);
-    }
-
-    const { data: agents } = await query;
 
     if (agents && agents.length > 0) {
         const apiKey = process.env.GALLABOX_API_KEY;

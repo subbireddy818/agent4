@@ -44,6 +44,7 @@ CREATE TABLE profiles (
   status verification_status DEFAULT 'pending'::verification_status NOT NULL,
   cp_id VARCHAR(50) UNIQUE,
   points INTEGER DEFAULT 0 NOT NULL,
+  credits INTEGER DEFAULT 0 NOT NULL,
   referrals_count INTEGER DEFAULT 0 NOT NULL,
   rejection_reason TEXT,
   location VARCHAR(100) DEFAULT 'Hyderabad',

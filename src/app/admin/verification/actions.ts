@@ -138,3 +138,18 @@ export async function toggleReraApprovalAction(profileId: string, isApproved: bo
   }
 }
 
+export async function updateBuilderCreditsAction(builderId: string, credits: number) {
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ credits: credits })
+      .eq("id", builderId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in updateBuilderCreditsAction server action:", err);
+    return { success: false, error: err.message };
+  }
+}
+
