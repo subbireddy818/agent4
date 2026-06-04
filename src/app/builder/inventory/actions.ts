@@ -143,7 +143,7 @@ export async function updateUnitStatus(
   try {
     const { error } = await supabaseAdmin
       .from("inventory_units")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ status })
       .eq("id", unitId);
 
     if (error) return { ok: false, error: error.message };
@@ -211,7 +211,6 @@ export async function updateInventoryUnit(input: UpdateUnitInput): Promise<{ ok:
           bhk: input.bhk_type || null,
           possession_date: input.possession_date || null,
         },
-        updated_at: new Date().toISOString()
       })
       .eq("id", input.id);
 
