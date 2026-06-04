@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Calendar, MapPin, CheckCircle2, XCircle, Loader2, Clock, Ticket } from "lucide-react";
 import { getAgentEvents, respondToInvitation, EventWithInvitation } from "./actions";
 
-export default function LaunchesPage() {
+export default function InvitationsPage() {
   const [events, setEvents] = useState<EventWithInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [respondingId, setRespondingId] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function LaunchesPage() {
   return (
     <div className="space-y-6 text-slate-800">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Launches & Events</h1>
+        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Invitations & Events</h1>
         <p className="text-[#64748b] text-xs font-semibold mt-0.5">
           Accept or decline event invitations. Attend to earn rewards.
         </p>

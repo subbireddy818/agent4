@@ -79,9 +79,9 @@ export default function FollowingProjectsPage() {
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
           <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-slate-900">Not Following Any Projects</h3>
-          <p className="text-sm text-slate-500 mt-1 mb-6">Discover new projects in the Launches section.</p>
-          <a href="/agent/launches" className="px-5 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold text-sm rounded-xl transition">
-            Browse Launches
+          <p className="text-sm text-slate-500 mt-1 mb-6">Discover new projects in the Invitations section.</p>
+          <a href="/agent/invitations" className="px-5 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold text-sm rounded-xl transition">
+            Browse Invitations
           </a>
         </div>
       ) : (
