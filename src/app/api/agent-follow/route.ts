@@ -43,10 +43,62 @@ export async function GET(req: NextRequest) {
   const session = await verifySession(token);
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  // Builder sees their own followers
+  // Builder sees their own followers (both direct follows and project follows)
   if (session.role === "builder" || session.role === "super_builder") {
-    const { data: followers } = await supabaseAdmin.from("agent_follows_builder").select("*, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name, location)").eq("builder_id", session.sub).order("created_at", { ascending: false });
-    return NextResponse.json({ followers: followers || [] });
+    // 1. Fetch direct builder follows
+    const { data: directFollows } = await supabaseAdmin
+      .from("agent_follows_builder")
+      .select("agent_id, created_at, profiles:profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name, location)")
+      .eq("builder_id", session.sub);
+
+    // 2. Fetch builder's projects
+    const { data: projects } = await supabaseAdmin
+      .from("projects")
+      .select("id")
+      .eq("developer_id", session.sub);
+
+    let projectFollows: any[] = [];
+    if (projects && projects.length > 0) {
+      const projectIds = projects.map((p) => p.id);
+      const { data: rsvps } = await supabaseAdmin
+        .from("rsvps")
+        .select("agent_id, created_at, profiles:profiles(name, phone, agency_name, location)")
+        .in("event_id", projectIds);
+      if (rsvps) {
+        projectFollows = rsvps;
+      }
+    }
+
+    // 3. Merge direct and project follows (de-duplicate on agent_id)
+    const mergedMap = new Map<string, { id: string; created_at: string; profiles: any }>();
+
+    if (directFollows) {
+      directFollows.forEach((df: any) => {
+        mergedMap.set(df.agent_id, {
+          id: df.agent_id,
+          created_at: df.created_at,
+          profiles: df.profiles || null
+        });
+      });
+    }
+
+    if (projectFollows) {
+      projectFollows.forEach((pf: any) => {
+        if (!mergedMap.has(pf.agent_id)) {
+          mergedMap.set(pf.agent_id, {
+            id: pf.agent_id,
+            created_at: pf.created_at,
+            profiles: pf.profiles || null
+          });
+        }
+      });
+    }
+
+    const mergedList = Array.from(mergedMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    return NextResponse.json({ followers: mergedList });
   }
 
   // Agent gets their following list
