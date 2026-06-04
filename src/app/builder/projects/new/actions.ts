@@ -17,7 +17,9 @@ export async function saveProjectAction(
   city: string,
   priceEstimate: string,
   type: string,
-  units: ParsedUnit[]
+  units: ParsedUnit[],
+  recipientFilter?: "all" | "verified" | "rera",
+  targetLocations?: string[]
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const digits = phone.replace(/\D/g, "");
@@ -80,11 +82,23 @@ export async function saveProjectAction(
         description: `New ${type} project in ${location} by ${profile.agency_name || 'Builder'}. Starting at ${priceEstimate}.`
     });
 
-    // Notify all agents via WhatsApp
-    const { data: agents } = await supabaseAdmin
+    // Notify agents via WhatsApp based on filters
+    let query = supabaseAdmin
         .from("profiles")
         .select("phone")
         .eq("role", "agent");
+
+    if (recipientFilter === "verified") {
+      query = query.eq("status", "approved");
+    } else if (recipientFilter === "rera") {
+      query = query.not("rera_number", "is", null).neq("rera_number", "N/A").neq("rera_number", "");
+    }
+
+    if (targetLocations && targetLocations.length > 0) {
+      query = query.in("location", targetLocations);
+    }
+
+    const { data: agents } = await query;
 
     if (agents && agents.length > 0) {
         const apiKey = process.env.GALLABOX_API_KEY;
