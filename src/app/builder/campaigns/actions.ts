@@ -1,6 +1,8 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { cookies } from "next/headers";
+import { sessionCookieName, verifySession } from "@/lib/session";
 
 export async function launchCampaignAction(
   phone: string,
@@ -13,16 +15,54 @@ export async function launchCampaignAction(
   targetLocations?: string[]
 ): Promise<{ ok: boolean; error?: string; sentCount?: number }> {
   try {
-    const digits = phone.replace(/\D/g, "");
-    const last10 = digits.slice(-10);
-    const formattedPhone = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+    let profile: any = null;
 
-    // Get builder profile
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("id, credits")
-      .eq("phone", formattedPhone)
-      .single();
+    // Try verifying server session first (most robust)
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get(sessionCookieName)?.value;
+      const session = await verifySession(token);
+
+      if (session) {
+        const { data: pById } = await supabaseAdmin
+          .from("profiles")
+          .select("id, credits")
+          .eq("id", session.sub)
+          .maybeSingle();
+        
+        if (pById) {
+          profile = pById;
+        } else if (session.phone) {
+          const { data: pByPhone } = await supabaseAdmin
+            .from("profiles")
+            .select("id, credits")
+            .eq("phone", session.phone)
+            .maybeSingle();
+          if (pByPhone) {
+            profile = pByPhone;
+          }
+        }
+      }
+    } catch (sessionErr) {
+      console.warn("Session check skipped or failed inside launchCampaignAction:", sessionErr);
+    }
+
+    // Fallback to phone parameter if session check didn't resolve profile
+    if (!profile && phone) {
+      const digits = phone.replace(/\D/g, "");
+      const last10 = digits.slice(-10);
+      if (last10.length === 10) {
+        const formattedPhone = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+        const { data: pByPhone } = await supabaseAdmin
+          .from("profiles")
+          .select("id, credits")
+          .eq("phone", formattedPhone)
+          .maybeSingle();
+        if (pByPhone) {
+          profile = pByPhone;
+        }
+      }
+    }
 
     if (!profile) return { ok: false, error: "Builder profile not found" };
 
