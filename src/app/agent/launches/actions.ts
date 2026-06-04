@@ -96,6 +96,27 @@ export async function respondToInvitation(
           { onConflict: "event_id,agent_id" }
         );
       error = res.error;
+
+      if (!error) {
+        // If event is a project launch, also follow the builder
+        const { data: project } = await supabaseAdmin
+          .from("projects")
+          .select("developer_id")
+          .eq("id", eventId)
+          .maybeSingle();
+
+        if (project?.developer_id) {
+          await supabaseAdmin
+            .from("agent_follows_builder")
+            .upsert(
+              {
+                agent_id: profile.id,
+                builder_id: project.developer_id,
+              },
+              { onConflict: "agent_id,builder_id" }
+            );
+        }
+      }
     } else {
       // If declined, delete the RSVP
       const res = await supabaseAdmin
@@ -104,6 +125,45 @@ export async function respondToInvitation(
         .eq("event_id", eventId)
         .eq("agent_id", profile.id);
       error = res.error;
+
+      if (!error) {
+        // If event is a project launch, clean up the builder follow
+        const { data: project } = await supabaseAdmin
+          .from("projects")
+          .select("developer_id")
+          .eq("id", eventId)
+          .maybeSingle();
+
+        if (project?.developer_id) {
+          // Check if agent is RSVP'd to any other projects by this developer
+          const { data: otherRsvps } = await supabaseAdmin
+            .from("rsvps")
+            .select("event_id")
+            .eq("agent_id", profile.id)
+            .neq("event_id", eventId);
+
+          let stillFollowingOther = false;
+          if (otherRsvps && otherRsvps.length > 0) {
+            const projectIds = otherRsvps.map((r: any) => r.event_id);
+            const { count } = await supabaseAdmin
+              .from("projects")
+              .select("id", { count: "exact", head: true })
+              .in("id", projectIds)
+              .eq("developer_id", project.developer_id);
+            if (count && count > 0) {
+              stillFollowingOther = true;
+            }
+          }
+
+          if (!stillFollowingOther) {
+            await supabaseAdmin
+              .from("agent_follows_builder")
+              .delete()
+              .eq("agent_id", profile.id)
+              .eq("builder_id", project.developer_id);
+          }
+        }
+      }
     }
 
     if (error) return { ok: false, error: error.message };
