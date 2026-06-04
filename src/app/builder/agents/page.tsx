@@ -3,15 +3,17 @@
 import { useState, useEffect } from "react";
 import { 
   Users, Search, MapPin, Building2, 
-  Trophy, Loader2, UserCheck
+  Trophy, Loader2, UserCheck, Phone, Mail
 } from "lucide-react";
 import { getVerificationRequests } from "@/app/admin/verification/actions";
+import { maskPhone, maskEmail } from "@/lib/mask";
 
 interface Agent {
   id: string;
   name: string;
   agency_name: string;
   phone: string;
+  email?: string;
   cp_id: string;
   points: number;
   location: string;
@@ -37,6 +39,7 @@ export default function AgentDirectory() {
               name: p.name,
               agency_name: p.agency_name || "Independent Agent",
               phone: p.phone,
+              email: p.email || "No Email",
               cp_id: p.cp_id || "Pending",
               points: p.points || 0,
               location: p.location || "Hyderabad",
@@ -137,6 +140,16 @@ export default function AgentDirectory() {
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>{agent.location}</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>{maskPhone(agent.phone)}</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>{maskEmail(agent.email || "")}</span>
                   </div>
                 </div>
               </div>

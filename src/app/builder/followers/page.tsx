@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, Loader2, MapPin, Clock } from "lucide-react";
+import { maskPhone } from "@/lib/mask";
 
 interface Follower {
   id: string;
@@ -46,7 +47,7 @@ export default function BuilderFollowersPage() {
                 <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center"><Users className="w-5 h-5 text-emerald-600" /></div>
                 <div>
                   <p className="text-sm font-extrabold text-slate-900">{f.profiles?.name || "Agent"}</p>
-                  <p className="text-xs text-slate-500">{f.profiles?.agency_name || "Independent"} · {f.profiles?.phone}{f.profiles?.location && <span className="inline-flex items-center ml-2"><MapPin className="w-3 h-3 mr-0.5" />{f.profiles.location}</span>}</p>
+                  <p className="text-xs text-slate-500">{f.profiles?.agency_name || "Independent"} · {maskPhone(f.profiles?.phone)}{f.profiles?.location && <span className="inline-flex items-center ml-2"><MapPin className="w-3 h-3 mr-0.5" />{f.profiles.location}</span>}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-1 text-[10px] text-slate-400"><Clock className="w-3 h-3" /><span>Followed {timeAgo(f.created_at)}</span></div>
