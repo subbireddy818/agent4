@@ -180,3 +180,97 @@ export async function getProjectInventoryUnits(
     };
   });
 }
+
+export interface UpdateUnitInput {
+  id: string;
+  unit_name: string;
+  status: string;
+  floor_number?: number;
+  tower?: string;
+  facing?: string;
+  carpet_area_sqft?: number;
+  price?: number;
+  bhk_type?: string;
+  possession_date?: string;
+}
+
+export async function updateInventoryUnit(input: UpdateUnitInput): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from("inventory_units")
+      .update({
+        unit_name: input.unit_name,
+        status: input.status,
+        details: {
+          floor_number: input.floor_number || null,
+          tower: input.tower || null,
+          facing: input.facing || null,
+          carpet_area_sqft: input.carpet_area_sqft || null,
+          price: input.price || null,
+          bhk_type: input.bhk_type || null,
+          bhk: input.bhk_type || null,
+          possession_date: input.possession_date || null,
+        },
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", input.id);
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+export async function updateProjectUnitsFromExcel(
+  projectId: string,
+  units: any[]
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // Delete existing units
+    const { error: deleteError } = await supabaseAdmin
+      .from("inventory_units")
+      .delete()
+      .eq("project_id", projectId);
+
+    if (deleteError) {
+      return { ok: false, error: "Failed to clear existing units: " + deleteError.message };
+    }
+
+    // Insert new units
+    const unitsToInsert = units.map(u => {
+      const detailsMerged = {
+        ...(u.details || {}),
+        floor_number: u.floor_number || null,
+        tower: u.tower || null,
+        facing: u.facing || null,
+        carpet_area_sqft: u.carpet_area_sqft || null,
+        price: u.price || null,
+        bhk_type: u.bhk_type || null,
+        bhk: u.bhk_type || null,
+        possession_date: u.possession_date || null,
+      };
+      return {
+        project_id: projectId,
+        unit_name: u.unit_name,
+        status: (u.status || "available").toLowerCase(),
+        details: detailsMerged
+      };
+    });
+
+    if (unitsToInsert.length > 0) {
+      const { error: insertError } = await supabaseAdmin
+        .from("inventory_units")
+        .insert(unitsToInsert);
+
+      if (insertError) {
+        return { ok: false, error: "Failed to insert new units: " + insertError.message };
+      }
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error("Bulk Excel update error:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}

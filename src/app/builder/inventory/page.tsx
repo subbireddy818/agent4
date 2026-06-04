@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Building, Loader2, CheckCircle2, X } from "lucide-react";
+import { Plus, Building, Loader2, CheckCircle2, X, FileSpreadsheet, Pencil, Sparkles, Upload } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   getInventoryUnits,
   getBuilderProjects,
   addInventoryUnit,
   updateUnitStatus,
+  updateInventoryUnit,
+  updateProjectUnitsFromExcel,
   InventoryUnit,
   BuilderProject,
 } from "./actions";
@@ -18,6 +21,31 @@ export default function BuilderInventoryPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Edit State
+  const [showEdit, setShowEdit] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<InventoryUnit | null>(null);
+  const [editingForm, setEditingForm] = useState({
+    id: "",
+    unit_name: "",
+    status: "available",
+    floor_number: "",
+    tower: "",
+    facing: "",
+    carpet_area_sqft: "",
+    price: "",
+    bhk_type: "",
+    possession_date: "",
+  });
+  const [updating, setUpdating] = useState(false);
+
+  // Bulk Excel Upload State
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [excelProjectId, setExcelProjectId] = useState("");
+  const [excelFileName, setExcelFileName] = useState("");
+  const [excelParsing, setExcelParsing] = useState(false);
+  const [excelUnits, setExcelUnits] = useState<any[]>([]);
+  const [excelSaving, setExcelSaving] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -85,6 +113,150 @@ export default function BuilderInventoryPage() {
     }
   };
 
+  const openEdit = (unit: InventoryUnit) => {
+    setEditingUnit(unit);
+    setEditingForm({
+      id: unit.id,
+      unit_name: unit.unit_name,
+      status: unit.status,
+      floor_number: unit.floor_number !== null ? String(unit.floor_number) : "",
+      tower: unit.tower || "",
+      facing: unit.facing || "",
+      carpet_area_sqft: unit.carpet_area_sqft !== null ? String(unit.carpet_area_sqft) : "",
+      price: unit.price !== null ? String(unit.price) : "",
+      bhk_type: unit.bhk_type || "",
+      possession_date: unit.possession_date || "",
+    });
+    setShowEdit(true);
+    setMessage("");
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdating(true);
+    setMessage("");
+
+    const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+    const result = await updateInventoryUnit({
+      id: editingForm.id,
+      unit_name: editingForm.unit_name,
+      status: editingForm.status,
+      floor_number: editingForm.floor_number ? parseInt(editingForm.floor_number) : undefined,
+      tower: editingForm.tower || undefined,
+      facing: editingForm.facing || undefined,
+      carpet_area_sqft: editingForm.carpet_area_sqft ? parseInt(editingForm.carpet_area_sqft) : undefined,
+      price: editingForm.price ? parseFloat(editingForm.price) : undefined,
+      bhk_type: editingForm.bhk_type || undefined,
+      possession_date: editingForm.possession_date || undefined,
+    });
+
+    if (result.ok) {
+      setShowEdit(false);
+      setEditingUnit(null);
+      // Refresh
+      const refreshed = await getInventoryUnits(phone);
+      setUnits(refreshed);
+    } else {
+      setMessage(result.error || "Failed to update unit");
+    }
+    setUpdating(false);
+  };
+
+  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setExcelFileName(selectedFile.name);
+      setExcelParsing(true);
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = XLSX.read(bstr, { type: "binary" });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = XLSX.utils.sheet_to_json(ws);
+          
+          const parsed = data.map((row: any) => {
+            const getVal = (patterns: string[]) => {
+              const key = Object.keys(row).find(k => 
+                patterns.some(p => k.toLowerCase().replace(/[\s_-]/g, "").includes(p))
+              );
+              return key ? row[key] : null;
+            };
+
+            const unitName = getVal(["apartment", "unitname", "unitno", "flat", "plot", "name", "number"]) || "Unit";
+            const block = getVal(["block", "tower"]);
+            const floorNo = getVal(["floorno", "floor"]);
+            const facing = getVal(["facing"]);
+            const sqft = getVal(["sqft", "area", "size", "sft"]);
+            const price = getVal(["price", "cost", "value"]);
+            const bhkVal = getVal(["bhk", "bhktype"]);
+            const statusRaw = getVal(["status", "availability"]) || "available";
+
+            let status = "available";
+            const sLower = String(statusRaw).toLowerCase();
+            if (sLower.includes("book")) status = "booked";
+            else if (sLower.includes("sold") || sLower.includes("close")) status = "sold";
+            else if (sLower.includes("block")) status = "blocked";
+            else if (sLower.includes("hold")) status = "hold";
+
+            return {
+              unit_name: String(unitName),
+              status: status,
+              floor_number: floorNo ? parseInt(String(floorNo)) : null,
+              tower: block ? String(block) : null,
+              facing: facing ? String(facing) : null,
+              carpet_area_sqft: sqft ? parseInt(String(sqft)) : null,
+              price: price ? parseFloat(String(price)) : null,
+              bhk_type: bhkVal ? String(bhkVal) : null,
+              details: row
+            };
+          });
+
+          setExcelUnits(parsed);
+        } catch (err) {
+          console.error("Error parsing Excel:", err);
+          alert("Error parsing Excel file.");
+        } finally {
+          setExcelParsing(false);
+        }
+      };
+      reader.readAsBinaryString(selectedFile);
+    }
+  };
+
+  const handleExcelSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!excelProjectId || excelUnits.length === 0) {
+      alert("Please select a project and upload a valid Excel file.");
+      return;
+    }
+
+    setExcelSaving(true);
+    const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+    try {
+      const result = await updateProjectUnitsFromExcel(excelProjectId, excelUnits);
+      if (result.ok) {
+        setShowExcelModal(false);
+        setExcelProjectId("");
+        setExcelFileName("");
+        setExcelUnits([]);
+        
+        // Refresh
+        const refreshed = await getInventoryUnits(phone);
+        setUnits(refreshed);
+      } else {
+        alert(result.error || "Failed to update units from Excel.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while saving units.");
+    } finally {
+      setExcelSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -100,13 +272,22 @@ export default function BuilderInventoryPage() {
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Inventory Management</h1>
           <p className="text-[#64748b] text-xs font-semibold mt-0.5">Add, update, and manage your project units.</p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="px-4 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 transition"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Unit</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowExcelModal(true)}
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 transition"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Excel</span>
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="px-4 py-2.5 bg-[#25d366] hover:bg-[#16c47f] text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Unit</span>
+          </button>
+        </div>
       </div>
 
       {/* Units Table */}
@@ -123,12 +304,13 @@ export default function BuilderInventoryPage() {
                 <th className="px-4 py-3 text-left">Price</th>
                 <th className="px-4 py-3 text-left">Facing</th>
                 <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {units.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                     <Building className="w-5 h-5 mx-auto mb-2" />
                     No units added yet. Click "Add Unit" to get started.
                   </td>
@@ -161,6 +343,15 @@ export default function BuilderInventoryPage() {
                       <option value="blocked">Blocked</option>
                       <option value="hold">Hold</option>
                     </select>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => openEdit(unit)}
+                      className="p-1 text-slate-400 hover:text-indigo-650 transition inline-block"
+                      title="Edit Unit"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -311,6 +502,245 @@ export default function BuilderInventoryPage() {
               >
                 {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 <span>{adding ? "Adding..." : "Add Unit to Inventory"}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Unit Modal */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl relative text-slate-800">
+            <button
+              onClick={() => setShowEdit(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Edit Unit Details</h2>
+
+            <form onSubmit={handleEdit} className="space-y-3 text-xs">
+              <div className="space-y-1.5">
+                <label className="block text-[9px] font-bold text-slate-400 uppercase">Unit Name</label>
+                <input
+                  required
+                  placeholder="e.g. Flat 402, Block A"
+                  value={editingForm.unit_name}
+                  onChange={(e) => setEditingForm({ ...editingForm, unit_name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-slate-800 outline-none text-sm font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">BHK Type</label>
+                  <select
+                    value={editingForm.bhk_type}
+                    onChange={(e) => setEditingForm({ ...editingForm, bhk_type: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  >
+                    <option value="">Select</option>
+                    <option value="1 BHK">1 BHK</option>
+                    <option value="2 BHK">2 BHK</option>
+                    <option value="3 BHK">3 BHK</option>
+                    <option value="4 BHK">4 BHK</option>
+                    <option value="5+ BHK">5+ BHK</option>
+                    <option value="Plot">Plot</option>
+                    <option value="Villa">Villa</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Floor</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 4"
+                    value={editingForm.floor_number}
+                    onChange={(e) => setEditingForm({ ...editingForm, floor_number: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Tower</label>
+                  <input
+                    placeholder="e.g. Tower A"
+                    value={editingForm.tower}
+                    onChange={(e) => setEditingForm({ ...editingForm, tower: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Carpet Area (sqft)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 1850"
+                    value={editingForm.carpet_area_sqft}
+                    onChange={(e) => setEditingForm({ ...editingForm, carpet_area_sqft: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Price (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 18200000"
+                    value={editingForm.price}
+                    onChange={(e) => setEditingForm({ ...editingForm, price: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Facing</label>
+                  <select
+                    value={editingForm.facing}
+                    onChange={(e) => setEditingForm({ ...editingForm, facing: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  >
+                    <option value="">Select</option>
+                    <option value="East">East</option>
+                    <option value="West">West</option>
+                    <option value="North">North</option>
+                    <option value="South">South</option>
+                    <option value="North-East">North-East</option>
+                    <option value="South-East">South-East</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Possession Date</label>
+                  <input
+                    type="date"
+                    value={editingForm.possession_date}
+                    onChange={(e) => setEditingForm({ ...editingForm, possession_date: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Status</label>
+                  <select
+                    value={editingForm.status}
+                    onChange={(e) => setEditingForm({ ...editingForm, status: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-slate-800 outline-none font-bold text-slate-900"
+                  >
+                    <option value="available">Available</option>
+                    <option value="booked">Booked</option>
+                    <option value="sold">Sold</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="hold">Hold</option>
+                  </select>
+                </div>
+              </div>
+
+              {message && (
+                <div className="p-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-bold">
+                  {message}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={updating}
+                className="w-full py-3 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition disabled:opacity-60 flex items-center justify-center space-x-2 shadow-md shadow-indigo-600/25"
+              >
+                {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span>{updating ? "Saving Changes..." : "Save Changes"}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Upload Modal */}
+      {showExcelModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl relative text-slate-800">
+            <button
+              onClick={() => {
+                setShowExcelModal(false);
+                setExcelProjectId("");
+                setExcelFileName("");
+                setExcelUnits([]);
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center space-x-2">
+              <FileSpreadsheet className="w-5 h-5 text-indigo-500" />
+              <span>Bulk Excel Update</span>
+            </h2>
+            <p className="text-[11px] text-slate-400 mb-4">
+              Upload an Excel file to replace the entire inventory units list of the selected project. This will delete all current units for the selected project and replace them.
+            </p>
+
+            <form onSubmit={handleExcelSave} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Target Project</label>
+                <select
+                  required
+                  value={excelProjectId}
+                  onChange={(e) => setExcelProjectId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-slate-800 outline-none text-sm font-medium"
+                >
+                  <option value="">Select project...</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.location})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[9px] font-bold text-slate-400 uppercase">Excel File (.xlsx, .xls, .csv)</label>
+                <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-2xl p-6 transition text-center cursor-pointer relative bg-slate-50/50">
+                  <input
+                    type="file"
+                    required
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleExcelFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <div className="space-y-2 flex flex-col items-center">
+                    <FileSpreadsheet className="w-8 h-8 text-slate-400" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">
+                        {excelFileName ? excelFileName : "Click to select or drag Excel file here"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Supports standard columns (Unit Name, Block, Floor, Facing, Sqft, Price, BHK)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {excelParsing && (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] text-slate-500 font-bold flex items-center space-x-1.5 justify-center">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                  <span>Parsing Excel columns...</span>
+                </div>
+              )}
+
+              {!excelParsing && excelUnits.length > 0 && (
+                <div className="p-2.5 bg-emerald-50 border border-emerald-250 rounded-xl text-[10px] text-emerald-700 font-bold flex items-center space-x-1.5 justify-center">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Successfully parsed {excelUnits.length} inventory units from Excel!</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={excelSaving || excelUnits.length === 0 || !excelProjectId}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition disabled:opacity-60 flex items-center justify-center space-x-2 shadow-md shadow-indigo-600/20"
+              >
+                {excelSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span>{excelSaving ? "Updating Inventory..." : "Replace & Save Inventory"}</span>
               </button>
             </form>
           </div>
