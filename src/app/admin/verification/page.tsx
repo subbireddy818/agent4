@@ -97,8 +97,20 @@ export default function VerificationQueue() {
     loadRequests();
   }, []);
 
-  const tabs = ["Pending", "Docs Required", "Docs Uploaded", "Approved", "Rejected"];
-  const filteredRequests = requests.filter(r => r.status === activeTab);
+  const tabs = ["Pending", "Docs Required", "Docs Uploaded", "Approved", "RERA Approved", "Rejected"];
+  const filteredRequests = requests.filter(r => {
+    if (activeTab === "RERA Approved") {
+      return r.status === "Approved" && r.isReraApproved;
+    }
+    return r.status === activeTab;
+  });
+
+  const getTabCount = (tab: string) => {
+    if (tab === "RERA Approved") {
+      return requests.filter(r => r.status === "Approved" && r.isReraApproved).length;
+    }
+    return requests.filter(r => r.status === tab).length;
+  };
 
   const handleRequestDocs = async (id: string) => {
     setLoading(true);
@@ -218,7 +230,7 @@ export default function VerificationQueue() {
               activeTab === tab ? "bg-[#25d366] text-white" : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            {tab} ({requests.filter(r => r.status === tab).length})
+            {tab} ({getTabCount(tab)})
           </button>
         ))}
       </div>
@@ -253,9 +265,12 @@ export default function VerificationQueue() {
                     </div>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
                   {req.status === "Approved" && (
                     <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-600 px-2 py-0.5 rounded font-bold">{req.assignedCpId}</span>
+                  )}
+                  {req.status === "Approved" && req.isReraApproved && (
+                    <span className="text-[9px] bg-indigo-50 border border-indigo-200 text-indigo-650 px-2 py-0.5 rounded font-bold">RERA Approved</span>
                   )}
                   {req.status === "Docs Uploaded" && (
                     <span className="text-[9px] bg-blue-50 border border-blue-200 text-blue-600 px-2 py-0.5 rounded font-bold">Docs Ready</span>
