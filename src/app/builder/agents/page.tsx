@@ -19,6 +19,7 @@ interface Agent {
   points: number;
   location: string;
   created_at: string;
+  is_rera_approved?: boolean;
 }
 
 export default function AgentDirectory() {
@@ -26,6 +27,8 @@ export default function AgentDirectory() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [reraFilter, setReraFilter] = useState<"all" | "rera">("all");
+  const [selectedLocation, setSelectedLocation] = useState("");
 
   useEffect(() => {
     async function loadAgents() {
@@ -45,7 +48,8 @@ export default function AgentDirectory() {
               cp_id: p.cp_id || "Pending",
               points: p.points || 0,
               location: p.location || "Hyderabad",
-              created_at: p.created_at
+              created_at: p.created_at,
+              is_rera_approved: p.is_rera_approved || false
             }));
           setAgents(approved);
         }
@@ -58,11 +62,21 @@ export default function AgentDirectory() {
     loadAgents();
   }, []);
 
-  const filteredAgents = agents.filter(agent => 
-    agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    agent.agency_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    agent.cp_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const uniqueLocations = Array.from(
+    new Set(agents.map((a) => a.location?.trim()).filter(Boolean))
+  ).sort();
+
+  const filteredAgents = agents.filter(agent => {
+    const matchesSearch = 
+      agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      agent.agency_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      agent.cp_id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesRera = reraFilter === "all" || agent.is_rera_approved;
+    const matchesLocation = !selectedLocation || agent.location?.trim() === selectedLocation;
+
+    return matchesSearch && matchesRera && matchesLocation;
+  });
 
   return (
     <div className="space-y-6 text-slate-800">
@@ -80,8 +94,8 @@ export default function AgentDirectory() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center">
-        <div className="relative w-full sm:max-w-md">
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm text-xs font-semibold">
+        <div className="flex-1 max-w-md relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -91,8 +105,48 @@ export default function AgentDirectory() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
           />
         </div>
-        <div className="text-slate-400 text-xs font-bold shrink-0 self-center">
-          {filteredAgents.length} verified partner(s) found
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Location Filter */}
+          <div className="flex items-center space-x-2 bg-white px-3 py-2 border border-slate-200 rounded-xl shadow-sm">
+            <span className="text-slate-400 text-[10px] uppercase tracking-wider font-extrabold">Location:</span>
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="bg-transparent text-slate-700 font-bold outline-none cursor-pointer"
+            >
+              <option value="">All Locations</option>
+              {uniqueLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* RERA Filter Tabs */}
+          <div className="flex bg-slate-200/60 p-1 rounded-xl text-[11px] font-bold">
+            <button
+              onClick={() => setReraFilter("all")}
+              className={`px-3 py-1.5 rounded-lg transition shrink-0 ${
+                reraFilter === "all" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-850"
+              }`}
+            >
+              All Agents
+            </button>
+            <button
+              onClick={() => setReraFilter("rera")}
+              className={`px-3 py-1.5 rounded-lg transition shrink-0 ${
+                reraFilter === "rera" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-850"
+              }`}
+            >
+              RERA Approved
+            </button>
+          </div>
+
+          <div className="text-slate-400 font-bold shrink-0 pl-1 self-center">
+            {filteredAgents.length} verified partner(s) found
+          </div>
         </div>
       </div>
 
@@ -138,7 +192,14 @@ export default function AgentDirectory() {
                           {agent.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-extrabold text-slate-900 text-sm tracking-tight">{agent.name}</p>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-extrabold text-slate-900 text-sm tracking-tight">{agent.name}</span>
+                            {agent.is_rera_approved && (
+                              <span className="text-[9px] bg-indigo-100 border border-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded font-extrabold shrink-0">
+                                RERA Verified
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">{agent.cp_id}</p>
                         </div>
                       </div>
