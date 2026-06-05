@@ -21,6 +21,11 @@ interface Profile {
   points: number;
   created_at: string;
   credits?: number;
+  parent_id?: string | null;
+  parent?: {
+    name: string;
+    agency_name: string;
+  } | null;
 }
 
 interface Project {
@@ -87,9 +92,26 @@ export default function AdminDashboard() {
         .order("created_at", { ascending: false });
 
       if (profiles) {
-        setAgents(profiles.filter((p: Profile) => p.role === "agent"));
-        setBuilders(profiles.filter((p: Profile) => p.role === "builder"));
-        setPendingProfiles(profiles.filter((p: Profile) => p.status === "pending"));
+        // Resolve parent references in-memory
+        const profilesWithParent = profiles.map((p: any) => {
+          if (p.parent_id) {
+            const parentProfile = profiles.find((parent: any) => parent.id === p.parent_id);
+            if (parentProfile) {
+              return {
+                ...p,
+                parent: {
+                  name: parentProfile.name,
+                  agency_name: parentProfile.agency_name
+                }
+              };
+            }
+          }
+          return p;
+        });
+
+        setAgents(profilesWithParent.filter((p: Profile) => p.role === "agent"));
+        setBuilders(profilesWithParent.filter((p: Profile) => p.role === "builder"));
+        setPendingProfiles(profilesWithParent.filter((p: Profile) => p.status === "pending"));
       }
 
       const { data: leadsData } = await supabase
@@ -341,7 +363,14 @@ export default function AdminDashboard() {
                   >
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="font-extrabold text-slate-900">{builder.name}</div>
+                        <div className="font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                          <span>{builder.name}</span>
+                          {builder.parent && (
+                            <span className="px-2 py-0.5 bg-purple-50 text-purple-650 border border-purple-200 rounded text-[9px] font-extrabold">
+                              Sub-builder of {builder.parent.agency_name || builder.parent.name}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-slate-500 mt-0.5">
                           {builder.agency_name || "Builder"} · {builder.phone}
                         </div>
@@ -624,7 +653,14 @@ export default function AdminDashboard() {
           <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-slate-200 flex justify-between items-start">
               <div>
-                <h2 className="text-lg font-extrabold text-slate-900">{selectedBuilder.name}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg font-extrabold text-slate-900">{selectedBuilder.name}</h2>
+                  {selectedBuilder.parent && (
+                    <span className="px-2.5 py-0.5 bg-purple-50 text-purple-650 border border-purple-200 rounded text-[10px] font-extrabold">
+                      Sub-builder of {selectedBuilder.parent.agency_name || selectedBuilder.parent.name}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-slate-500 mt-1 space-y-0.5">
                   <div className="flex items-center space-x-1">
                     <Phone className="w-3 h-3" />
