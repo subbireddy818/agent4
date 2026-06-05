@@ -3,35 +3,29 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function GET() {
   try {
-    const tablesToTest = [
-      "agent_follows_builder",
-      "agent_follow_builder",
-      "agent_followers",
-      "builder_follows",
-      "builder_followers",
-      "followers",
-      "follows",
-      "rsvps",
-      "project_shares"
-    ];
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const results: Record<string, any> = {};
-
-    for (const table of tablesToTest) {
-      const { error, data } = await supabaseAdmin
-        .from(table)
-        .select("*")
-        .limit(1);
-      
-      if (error) {
-        results[table] = { exists: false, error: error.message, code: error.code };
-      } else {
-        results[table] = { exists: true, count: data.length };
-      }
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: "Missing env vars" });
     }
 
+    const res = await fetch(`${supabaseUrl}/rest/v1/`, {
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`
+      }
+    });
+
+    const spec = await res.json();
+    
+    // Extract paths and definitions keys
+    const paths = Object.keys(spec.paths || {});
+    const definitions = Object.keys(spec.definitions || {});
+
     return NextResponse.json({
-      results
+      paths,
+      definitions
     });
   } catch (err: any) {
     return NextResponse.json({ exception: err.message, stack: err.stack });
