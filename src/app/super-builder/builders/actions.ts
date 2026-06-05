@@ -47,10 +47,161 @@ export async function getSubBuilders() {
       .order("name", { ascending: true });
 
     if (error) throw error;
-    return { ok: true, builders: builders || [] };
+    if (!builders || builders.length === 0) {
+      return { ok: true, builders: [] };
+    }
+
+    const builderIds = builders.map((b) => b.id);
+
+    // Fetch assignments using supabaseAdmin to bypass RLS
+    const { data: assignments, error: assignError } = await supabaseAdmin
+      .from("sub_builder_agent_assignments")
+      .select("sub_builder_id, agent_id, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name)")
+      .eq("super_builder_id", superBuilderId);
+
+    if (assignError) throw assignError;
+
+    // Fetch followers using supabaseAdmin to bypass RLS
+    const { data: followers, error: followError } = await supabaseAdmin
+      .from("agent_follows_builder")
+      .select("builder_id, agent_id, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name)")
+      .in("builder_id", builderIds);
+
+    if (followError) throw followError;
+
+    // Map them together
+    const buildersWithData = builders.map((builder) => {
+      const builderAssignments = (assignments || [])
+        .filter((a) => a.sub_builder_id === builder.id)
+        .map((a: any) => {
+          const profiles = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+          return {
+            agent_id: a.agent_id,
+            name: profiles?.name || "Agent",
+            phone: profiles?.phone || "",
+            agency_name: profiles?.agency_name || ""
+          };
+        });
+
+      const builderFollowers = (followers || [])
+        .filter((f) => f.builder_id === builder.id)
+        .map((f: any) => {
+          const profiles = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles;
+          return {
+            agent_id: f.agent_id,
+            name: profiles?.name || "Agent",
+            phone: profiles?.phone || "",
+            agency_name: profiles?.agency_name || ""
+          };
+        });
+
+      return {
+        ...builder,
+        assignments: builderAssignments,
+        followers: builderFollowers
+      };
+    });
+
+    return { ok: true, builders: buildersWithData };
   } catch (err: any) {
     console.error("Error in getSubBuilders:", err);
     return { ok: false, error: err.message || "Failed to load sub-builders" };
+  }
+}
+
+export async function getSubBuilderDetails(subBuilderId: string) {
+  try {
+    const superBuilderId = await getSuperBuilderId();
+    if (!superBuilderId) return { ok: false, error: "Not authenticated" };
+
+    // Confirm that this builder is a sub-builder of this super builder
+    const { data: check } = await supabaseAdmin
+      .from("profiles")
+      .select("id, name, phone, agency_name, location")
+      .eq("id", subBuilderId)
+      .eq("parent_id", superBuilderId)
+      .maybeSingle();
+
+    if (!check) return { ok: false, error: "Access denied. Builder is not managed by you." };
+
+    // 1. Fetch sub-builder's projects
+    const { data: projects, error: projError } = await supabaseAdmin
+      .from("projects")
+      .select("id, name, location, price_range, type, created_at")
+      .eq("developer_id", subBuilderId)
+      .order("created_at", { ascending: false });
+
+    if (projError) throw projError;
+
+    // 2. Fetch inventory units for these projects
+    let inventory: any[] = [];
+    if (projects && projects.length > 0) {
+      const projectIds = projects.map((p) => p.id);
+      const { data: units, error: invError } = await supabaseAdmin
+        .from("inventory_units")
+        .select("id, project_id, unit_name, status, details, created_at")
+        .in("project_id", projectIds);
+      if (invError) throw invError;
+      inventory = units || [];
+    }
+
+    // 3. Fetch campaigns created by this sub-builder
+    const { data: campaigns, error: campError } = await supabaseAdmin
+      .from("campaigns")
+      .select("id, name, audience_segment, template, sent_count, read_rate, created_at")
+      .eq("builder_id", subBuilderId)
+      .order("created_at", { ascending: false });
+
+    if (campError) throw campError;
+
+    // 4. Fetch direct followers
+    const { data: followers, error: followError } = await supabaseAdmin
+      .from("agent_follows_builder")
+      .select("agent_id, created_at, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name, location)")
+      .eq("builder_id", subBuilderId);
+
+    if (followError) throw followError;
+
+    // 5. Fetch assigned agents
+    const { data: assignments, error: assignError } = await supabaseAdmin
+      .from("sub_builder_agent_assignments")
+      .select("agent_id, created_at, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name, location)")
+      .eq("sub_builder_id", subBuilderId);
+
+    if (assignError) throw assignError;
+
+    return {
+      ok: true,
+      subBuilder: check,
+      projects: projects || [],
+      inventory: inventory || [],
+      campaigns: campaigns || [],
+      followers: (followers || []).map((f: any) => {
+        const profiles = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles;
+        return {
+          id: f.agent_id,
+          name: profiles?.name || "Agent",
+          phone: profiles?.phone || "",
+          agency_name: profiles?.agency_name || "",
+          location: profiles?.location || "",
+          created_at: f.created_at
+        };
+      }),
+      assignments: (assignments || []).map((a: any) => {
+        const profiles = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+        return {
+          id: a.agent_id,
+          name: profiles?.name || "Agent",
+          phone: profiles?.phone || "",
+          agency_name: profiles?.agency_name || "",
+          location: profiles?.location || "",
+          created_at: a.created_at
+        };
+      })
+    };
+  } catch (err: any) {
+    console.error("Error in getSubBuilderDetails:", err);
+    return { ok: false, error: err.message || "Failed to load sub-builder details" };
   }
 }
 

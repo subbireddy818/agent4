@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { 
   Loader2, Users, Trash2, Building2, Search, X, 
-  UserMinus, UserPlus, Phone, MapPin, Plus, CheckCircle2 
+  UserMinus, UserPlus, Phone, MapPin, Plus, CheckCircle2,
+  Megaphone, Layers
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { 
   getSubBuilders, createSubBuilder, deleteSubBuilder,
   getAllAgents, getAssignedAgents, assignAgentsToSubBuilder,
-  getIndependentBuilders
+  getIndependentBuilders, getSubBuilderDetails
 } from "./actions";
 
 interface SharedBuilder {
@@ -48,6 +49,12 @@ export default function ManageBuildersPage() {
   // Assigned agents and followers state
   const [assignments, setAssignments] = useState<any[]>([]);
   const [followers, setFollowers] = useState<any[]>([]);
+
+  // Sub-builder details modal state
+  const [selectedDetailBuilderId, setSelectedDetailBuilderId] = useState<string | null>(null);
+  const [builderDetails, setBuilderDetails] = useState<any | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<"projects" | "campaigns" | "agents">("projects");
 
   // Assignments/Shares State
   const [shares, setShares] = useState<SharedBuilder[]>([]);
@@ -188,39 +195,41 @@ export default function ManageBuildersPage() {
       if (res.ok && res.builders) {
         setSubBuilders(res.builders as SubBuilder[]);
         
-        // Fetch all assignments and followers for these sub-builders
-        const meRes = await fetch("/api/me");
-        const meData = await meRes.json();
-        if (meData.user) {
-          const userId = meData.user.id;
-          
-          // Get all assignments for this super-builder
-          const { data: assignmentsData } = await supabase
-            .from("sub_builder_agent_assignments")
-            .select("sub_builder_id, agent_id, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name)")
-            .eq("super_builder_id", userId);
-            
-          if (assignmentsData) {
-            setAssignments(assignmentsData);
-          }
-          
-          const subBuilderIds = res.builders.map((b: any) => b.id);
-          if (subBuilderIds.length > 0) {
-            const { data: followsData } = await supabase
-              .from("agent_follows_builder")
-              .select("builder_id, agent_id, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name)")
-              .in("builder_id", subBuilderIds);
-              
-            if (followsData) {
-              setFollowers(followsData);
-            }
-          }
-        }
+        // Flatten and set assignments and followers from server-side fetched data
+        const allAssignments = res.builders.flatMap((b: any) => 
+          (b.assignments || []).map((a: any) => ({ ...a, sub_builder_id: b.id, profiles: { name: a.name, phone: a.phone, agency_name: a.agency_name } }))
+        );
+        const allFollowers = res.builders.flatMap((b: any) => 
+          (b.followers || []).map((f: any) => ({ ...f, builder_id: b.id, profiles: { name: f.name, phone: f.phone, agency_name: f.agency_name } }))
+        );
+        setAssignments(allAssignments);
+        setFollowers(allFollowers);
       }
     } catch (err) {
       console.error("Error loading builders:", err);
     } finally {
       setLoadingBuilders(false);
+    }
+  }
+
+  async function handleOpenDetailsModal(builderId: string) {
+    setSelectedDetailBuilderId(builderId);
+    setLoadingDetails(true);
+    setDetailsTab("projects");
+    setBuilderDetails(null);
+    try {
+      const res = await getSubBuilderDetails(builderId);
+      if (res.ok) {
+        setBuilderDetails(res);
+      } else {
+        alert(res.error || "Failed to load workspace details.");
+        setSelectedDetailBuilderId(null);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+      setSelectedDetailBuilderId(null);
+    } finally {
+      setLoadingDetails(false);
     }
   }
 
@@ -465,14 +474,18 @@ export default function ManageBuildersPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredBuilders.map((builder) => (
-                <div key={builder.id} className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition">
+                <div 
+                  key={builder.id} 
+                  onClick={() => handleOpenDetailsModal(builder.id)}
+                  className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition cursor-pointer"
+                >
                   <div>
                     <div className="flex justify-between items-start mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-55 bg-purple-100 flex items-center justify-center font-bold text-purple-700">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center font-bold text-purple-700">
                         {builder.name.charAt(0).toUpperCase()}
                       </div>
                       <button
-                        onClick={() => handleDeleteBuilder(builder.id, builder.name)}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteBuilder(builder.id, builder.name); }}
                         disabled={deletingBuilderId === builder.id}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                         title="Delete Sub-Builder Profile"
@@ -537,7 +550,7 @@ export default function ManageBuildersPage() {
 
                   <div className="mt-4 pt-3 border-t border-slate-100">
                     <button
-                      onClick={() => handleOpenAssignModal(builder.id, builder.name)}
+                      onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(builder.id, builder.name); }}
                       className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider transition flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
@@ -982,6 +995,263 @@ export default function ManageBuildersPage() {
               </button>
             </div>
           </div>
+      {/* Sub-Builder Details Modal */}
+      {selectedDetailBuilderId && (
+        <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden text-slate-805 flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                  <Building2 className="w-5 h-5 text-purple-600" />
+                  <span>Sub-Builder Workspace details: {builderDetails?.subBuilder?.name || "Loading..."}</span>
+                </h2>
+                <div className="flex items-center space-x-4 text-xs text-slate-500 mt-1 font-semibold">
+                  {builderDetails?.subBuilder?.phone && (
+                    <span className="flex items-center">
+                      <Phone className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                      {builderDetails.subBuilder.phone}
+                    </span>
+                  )}
+                  {builderDetails?.subBuilder?.location && (
+                    <span className="flex items-center">
+                      <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                      {builderDetails.subBuilder.location}
+                    </span>
+                  )}
+                  {builderDetails?.subBuilder?.agency_name && (
+                    <span className="flex items-center">
+                      <Users className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                      {builderDetails.subBuilder.agency_name}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedDetailBuilderId(null);
+                  setBuilderDetails(null);
+                }}
+                className="p-1.5 hover:bg-slate-200 rounded-lg transition"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDetails ? (
+                <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-650" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fetching sub-builder data...</span>
+                </div>
+              ) : !builderDetails ? (
+                <div className="text-center py-12 text-slate-400 font-bold">Failed to load sub-builder data.</div>
+              ) : (
+                <div className="space-y-6 text-slate-800">
+                  {/* Tab Selector */}
+                  <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold w-fit">
+                    <button
+                      onClick={() => setDetailsTab("projects")}
+                      className={`px-4 py-2 rounded-lg transition shrink-0 ${
+                        detailsTab === "projects" ? "bg-white text-purple-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      Projects & Inventory ({builderDetails.projects?.length || 0})
+                    </button>
+                    <button
+                      onClick={() => setDetailsTab("campaigns")}
+                      className={`px-4 py-2 rounded-lg transition shrink-0 ${
+                        detailsTab === "campaigns" ? "bg-white text-purple-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      Campaigns ({builderDetails.campaigns?.length || 0})
+                    </button>
+                    <button
+                      onClick={() => setDetailsTab("agents")}
+                      className={`px-4 py-2 rounded-lg transition shrink-0 ${
+                        detailsTab === "agents" ? "bg-white text-purple-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      Agents & Followers ({builderDetails.assignments?.length + builderDetails.followers?.length})
+                    </button>
+                  </div>
+
+                  {/* Tab Content */}
+                  {detailsTab === "projects" && (
+                    <div className="space-y-4">
+                      {builderDetails.projects.length === 0 ? (
+                        <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-12 text-center">
+                          <Building2 className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                          <p className="text-xs text-slate-500 font-bold">No projects created by this sub-builder.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                          {builderDetails.projects.map((proj: any) => {
+                            const projUnits = builderDetails.inventory.filter((u: any) => u.project_id === proj.id);
+                            return (
+                              <div key={proj.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h4 className="font-extrabold text-sm text-slate-900">{proj.name}</h4>
+                                    <p className="text-[11px] text-slate-500 flex items-center mt-0.5 font-semibold">
+                                      <MapPin className="w-3 h-3 mr-0.5" />
+                                      {proj.location}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-100 rounded text-[9px] font-extrabold uppercase tracking-wider">
+                                      {proj.type}
+                                    </span>
+                                    {proj.price_range && (
+                                      <p className="text-[10px] text-slate-500 mt-1 font-bold">{proj.price_range}</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Inventory Units list */}
+                                <div className="pt-2 border-t border-slate-100">
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Inventory Units ({projUnits.length})</p>
+                                  {projUnits.length === 0 ? (
+                                    <p className="text-[11px] text-slate-400 italic">No inventory units uploaded.</p>
+                                  ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                      {projUnits.map((unit: any) => (
+                                        <div key={unit.id} className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex flex-col justify-between text-[11px] font-bold text-slate-700 shadow-sm animate-fade-in">
+                                          <span className="text-slate-900 truncate">{unit.unit_name}</span>
+                                          <div className="flex items-center justify-between mt-1 text-[9px]">
+                                            <span className="text-slate-400">
+                                              {unit.details?.bhk || unit.details?.size || "Residential"}
+                                            </span>
+                                            <span className={`px-1.5 py-0.5 rounded font-extrabold uppercase ${
+                                              unit.status === "available"
+                                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                                : unit.status === "sold"
+                                                  ? "bg-red-50 text-red-600 border border-red-100"
+                                                  : "bg-amber-50 text-amber-600 border border-amber-100"
+                                            }`}>
+                                              {unit.status}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {detailsTab === "campaigns" && (
+                    <div>
+                      {builderDetails.campaigns.length === 0 ? (
+                        <div className="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-12 text-center">
+                          <Megaphone className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                          <p className="text-xs text-slate-500 font-bold">No campaigns run by this sub-builder.</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-2.5 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                            <span>Campaign Name</span>
+                            <span>Target Segment</span>
+                            <span>Sent Count</span>
+                            <span>Read Rate</span>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {builderDetails.campaigns.map((camp: any) => (
+                              <div key={camp.id} className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-3 items-center text-xs font-bold text-slate-700">
+                                <span className="text-slate-900">{camp.name}</span>
+                                <span className="text-slate-500">{camp.audience_segment}</span>
+                                <span>{camp.sent_count}</span>
+                                <span className="text-purple-650">{camp.read_rate}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {detailsTab === "agents" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Assigned agents list */}
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center">
+                          <span className="w-2 h-2 rounded-full bg-purple-500 mr-1.5"></span>
+                          <span>Assigned Agents ({builderDetails.assignments.length})</span>
+                        </h4>
+                        {builderDetails.assignments.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No agents assigned to this builder.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {builderDetails.assignments.map((agent: any) => (
+                              <div key={agent.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center text-xs font-bold">
+                                <div>
+                                  <p className="text-slate-900">{agent.name}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">{agent.phone} · {agent.agency_name || "Independent"}</p>
+                                </div>
+                                {agent.location && (
+                                  <span className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500 font-semibold">
+                                    {agent.location}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Followers list */}
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
+                          <span>Direct Followers ({builderDetails.followers.length})</span>
+                        </h4>
+                        {builderDetails.followers.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No direct followers for this builder.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {builderDetails.followers.map((follower: any) => (
+                              <div key={follower.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center text-xs font-bold">
+                                <div>
+                                  <p className="text-slate-900">{follower.name}</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">{follower.phone} · {follower.agency_name || "Independent"}</p>
+                                </div>
+                                {follower.location && (
+                                  <span className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500 font-semibold">
+                                    {follower.location}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0">
+              <button
+                onClick={() => {
+                  setSelectedDetailBuilderId(null);
+                  setBuilderDetails(null);
+                }}
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition uppercase tracking-wider cursor-pointer"
+              >
+                Close Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         </div>
       )}
     </div>
