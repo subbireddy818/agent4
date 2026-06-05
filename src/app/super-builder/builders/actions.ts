@@ -166,3 +166,68 @@ export async function deleteSubBuilder(builderId: string) {
     return { ok: false, error: err.message || "Failed to delete sub-builder" };
   }
 }
+
+export async function getAllAgents() {
+  try {
+    const { data: agents, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, name, phone, agency_name, location")
+      .eq("role", "agent")
+      .eq("status", "approved")
+      .order("name", { ascending: true });
+    if (error) throw error;
+    return { ok: true, agents: agents || [] };
+  } catch (err: any) {
+    console.error("Error in getAllAgents:", err);
+    return { ok: false, error: err.message || "Failed to load agents" };
+  }
+}
+
+export async function getAssignedAgents(subBuilderId: string) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("sub_builder_agent_assignments")
+      .select("agent_id")
+      .eq("sub_builder_id", subBuilderId);
+    if (error) throw error;
+    return { ok: true, agentIds: data ? data.map(d => d.agent_id) : [] };
+  } catch (err: any) {
+    console.error("Error in getAssignedAgents:", err);
+    return { ok: false, error: err.message || "Failed to load assignments" };
+  }
+}
+
+export async function assignAgentsToSubBuilder(subBuilderId: string, agentIds: string[]) {
+  try {
+    const superBuilderId = await getSuperBuilderId();
+    if (!superBuilderId) return { ok: false, error: "Not authenticated" };
+
+    // Delete existing assignments for this sub-builder
+    const { error: delError } = await supabaseAdmin
+      .from("sub_builder_agent_assignments")
+      .delete()
+      .eq("sub_builder_id", subBuilderId);
+    
+    if (delError) throw delError;
+
+    if (agentIds.length > 0) {
+      // Insert new assignments
+      const inserts = agentIds.map(agentId => ({
+        super_builder_id: superBuilderId,
+        sub_builder_id: subBuilderId,
+        agent_id: agentId
+      }));
+
+      const { error: insError } = await supabaseAdmin
+        .from("sub_builder_agent_assignments")
+        .insert(inserts);
+
+      if (insError) throw insError;
+    }
+
+    return { ok: true };
+  } catch (err: any) {
+    console.error("Error in assignAgentsToSubBuilder:", err);
+    return { ok: false, error: err.message || "Failed to assign agents" };
+  }
+}

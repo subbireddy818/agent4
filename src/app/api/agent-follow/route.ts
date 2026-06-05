@@ -114,7 +114,41 @@ export async function GET(req: NextRequest) {
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    return NextResponse.json({ followers: mergedList });
+    // Fetch assigned agents if this builder is a sub-builder
+    let assignedList: any[] = [];
+    const { data: builderProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("parent_id")
+      .eq("id", session.sub)
+      .maybeSingle();
+
+    if (builderProfile?.parent_id) {
+      const { data: assignments } = await supabaseAdmin
+        .from("sub_builder_agent_assignments")
+        .select("agent_id, created_at")
+        .eq("sub_builder_id", session.sub);
+
+      if (assignments && assignments.length > 0) {
+        const agentIds = assignments.map((a: any) => a.agent_id);
+        const { data: agentProfiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name, phone, agency_name, location")
+          .in("id", agentIds);
+
+        if (agentProfiles) {
+          assignedList = assignments.map((a: any) => {
+            const prof = agentProfiles.find((ap: any) => ap.id === a.agent_id);
+            return {
+              id: a.agent_id,
+              created_at: a.created_at,
+              profiles: prof || null
+            };
+          }).filter((a: any) => a.profiles !== null);
+        }
+      }
+    }
+
+    return NextResponse.json({ followers: mergedList, assignedAgents: assignedList });
   }
 
   // Agent gets their following list
