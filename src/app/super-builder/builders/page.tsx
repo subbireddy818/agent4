@@ -568,14 +568,14 @@ export default function ManageBuildersPage() {
                       {/* Actions */}
                       <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => handleOpenAssignModal(builder.id, builder.name)}
+                          onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(builder.id, builder.name); }}
                           className="px-3 py-1.5 bg-purple-650 hover:bg-purple-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center space-x-1.5 shadow-sm cursor-pointer"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           <span>Assign</span>
                         </button>
                         <button
-                          onClick={() => handleDeleteBuilder(builder.id, builder.name)}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteBuilder(builder.id, builder.name); }}
                           disabled={deletingBuilderId === builder.id}
                           className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition"
                           title="Delete Sub-Builder Profile"
