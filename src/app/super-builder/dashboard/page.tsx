@@ -25,19 +25,25 @@ export default function SuperBuilderDashboard() {
 
       const userId = meData.user.id;
 
-      // Get my projects count
+      // Get sub-builders of this super builder
+      const { data: subBuilders } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("parent_id", userId)
+        .eq("role", "builder");
+
+      const subBuilderIds = subBuilders ? subBuilders.map((sb) => sb.id) : [];
+      const developerIds = [userId, ...subBuilderIds];
+
+      // Get projects count (including sub-builders' projects)
       const { count: projCount } = await supabase
         .from("projects")
         .select("id", { count: "exact", head: true })
-        .eq("developer_id", userId);
+        .in("developer_id", developerIds);
       setTotalProjects(projCount || 0);
 
-      // Get total builders in the system
-      const { count: builderCount } = await supabase
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "builder");
-      setTotalBuilders(builderCount || 0);
+      // Get total sub-builders count
+      setTotalBuilders(subBuilderIds.length);
 
       // Get shared project count
       const { count: shareCount } = await supabase
@@ -117,7 +123,7 @@ export default function SuperBuilderDashboard() {
             </div>
             <div>
               <p className="text-2xl font-extrabold text-slate-900">{totalBuilders}</p>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Builders in System</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">My Sub-Builders</p>
             </div>
           </div>
         </Link>

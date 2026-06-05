@@ -45,6 +45,10 @@ export default function ManageBuildersPage() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
+  // Assigned agents and followers state
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [followers, setFollowers] = useState<any[]>([]);
+
   // Assignments/Shares State
   const [shares, setShares] = useState<SharedBuilder[]>([]);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -156,6 +160,7 @@ export default function ManageBuildersPage() {
         alert("Agents assigned successfully!");
         setShowAssignModal(false);
         setAssigningBuilder(null);
+        await loadBuilders();
       } else {
         alert(res.error || "Failed to save assignments.");
       }
@@ -182,6 +187,35 @@ export default function ManageBuildersPage() {
       const res = await getSubBuilders();
       if (res.ok && res.builders) {
         setSubBuilders(res.builders as SubBuilder[]);
+        
+        // Fetch all assignments and followers for these sub-builders
+        const meRes = await fetch("/api/me");
+        const meData = await meRes.json();
+        if (meData.user) {
+          const userId = meData.user.id;
+          
+          // Get all assignments for this super-builder
+          const { data: assignmentsData } = await supabase
+            .from("sub_builder_agent_assignments")
+            .select("sub_builder_id, agent_id, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name)")
+            .eq("super_builder_id", userId);
+            
+          if (assignmentsData) {
+            setAssignments(assignmentsData);
+          }
+          
+          const subBuilderIds = res.builders.map((b: any) => b.id);
+          if (subBuilderIds.length > 0) {
+            const { data: followsData } = await supabase
+              .from("agent_follows_builder")
+              .select("builder_id, agent_id, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name)")
+              .in("builder_id", subBuilderIds);
+              
+            if (followsData) {
+              setFollowers(followsData);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("Error loading builders:", err);
@@ -466,6 +500,39 @@ export default function ManageBuildersPage() {
                         <span>{builder.location}</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Assigned Agents & Followers Section */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Agents ({assignments.filter(a => a.sub_builder_id === builder.id).length})</span>
+                      {assignments.filter(a => a.sub_builder_id === builder.id).length === 0 ? (
+                        <p className="text-[11px] text-slate-400 italic mt-0.5">No agents assigned.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {assignments.filter(a => a.sub_builder_id === builder.id).map((a: any) => (
+                            <span key={a.agent_id} className="text-[9px] bg-purple-50 text-purple-700 border border-purple-100 px-1.5 py-0.5 rounded font-extrabold" title={a.profiles?.phone}>
+                              {a.profiles?.name || "Agent"}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Direct Followers ({followers.filter(f => f.builder_id === builder.id).length})</span>
+                      {followers.filter(f => f.builder_id === builder.id).length === 0 ? (
+                        <p className="text-[11px] text-slate-400 italic mt-0.5">No direct followers.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {followers.filter(f => f.builder_id === builder.id).map((f: any) => (
+                            <span key={f.agent_id} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded font-extrabold" title={f.profiles?.phone}>
+                              {f.profiles?.name || "Agent"}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-100">

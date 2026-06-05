@@ -45,17 +45,37 @@ export async function GET(req: NextRequest) {
 
   // Builder sees their own followers (both direct follows and project follows)
   if (session.role === "builder" || session.role === "super_builder") {
+    // Resolve the real builder ID and profile to handle session phone fallback
+    let realBuilderId = session.sub;
+    let { data: builderProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, parent_id")
+      .eq("id", session.sub)
+      .maybeSingle();
+
+    if (!builderProfile && session.phone) {
+      const { data: profileByPhone } = await supabaseAdmin
+        .from("profiles")
+        .select("id, parent_id")
+        .eq("phone", session.phone)
+        .maybeSingle();
+      if (profileByPhone) {
+        builderProfile = profileByPhone;
+        realBuilderId = profileByPhone.id;
+      }
+    }
+
     // 1. Fetch direct builder follows
     const { data: directFollows } = await supabaseAdmin
       .from("agent_follows_builder")
       .select("agent_id, created_at, profiles:profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name, location)")
-      .eq("builder_id", session.sub);
+      .eq("builder_id", realBuilderId);
 
     // 2. Fetch builder's projects
     const { data: projects } = await supabaseAdmin
       .from("projects")
       .select("id, name")
-      .eq("developer_id", session.sub);
+      .eq("developer_id", realBuilderId);
 
     let projectFollows: any[] = [];
     const projectMap = new Map<string, string>();
@@ -116,17 +136,12 @@ export async function GET(req: NextRequest) {
 
     // Fetch assigned agents if this builder is a sub-builder
     let assignedList: any[] = [];
-    const { data: builderProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("parent_id")
-      .eq("id", session.sub)
-      .maybeSingle();
 
     if (builderProfile?.parent_id) {
       const { data: assignments } = await supabaseAdmin
         .from("sub_builder_agent_assignments")
         .select("agent_id, created_at")
-        .eq("sub_builder_id", session.sub);
+        .eq("sub_builder_id", realBuilderId);
 
       if (assignments && assignments.length > 0) {
         const agentIds = assignments.map((a: any) => a.agent_id);
