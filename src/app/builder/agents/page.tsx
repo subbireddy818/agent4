@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { 
   Users, Search, MapPin, Building2, 
-  Trophy, Loader2, UserCheck, Phone, Mail
+  Trophy, Loader2, UserCheck, Phone, Mail,
+  ChevronDown, ChevronUp, Calendar
 } from "lucide-react";
 import { getVerificationRequests } from "@/app/admin/verification/actions";
 import { maskPhone, maskEmail } from "@/lib/mask";
@@ -24,6 +25,7 @@ export default function AgentDirectory() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAgents() {
@@ -102,76 +104,110 @@ export default function AgentDirectory() {
         </div>
       )}
 
-      {/* Grid of Agent Cards */}
+      {/* List of Agents */}
       {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredAgents.map(agent => (
-            <div 
-              key={agent.id} 
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-50/20 transition-all flex flex-col justify-between shadow-sm relative overflow-hidden"
-            >
-              {/* Badge for Approved */}
-              <div className="absolute top-0 right-0 bg-indigo-50 text-indigo-600 px-3 py-1 text-[9px] font-bold uppercase rounded-bl-xl flex items-center space-x-1">
-                <UserCheck className="w-3 h-3" />
-                <span>Verified</span>
-              </div>
-
-              <div className="space-y-4">
-                {/* Agent Avatar & Name */}
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-base shadow-sm">
-                    {agent.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-slate-900 text-sm tracking-tight">{agent.name}</h4>
-                    <div className="flex items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                      <span className="text-indigo-600 mr-1.5">{agent.cp_id}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div className="space-y-2.5 pt-1 text-xs font-semibold text-slate-600">
-                  <div className="flex items-center space-x-2">
-                    <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>{agent.agency_name}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>{agent.location}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>{maskPhone(agent.phone)}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>{maskEmail(agent.email || "")}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer Metrics */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-3.5 mt-4">
-                <div className="text-[10px] text-slate-400 font-bold uppercase">
-                  Joined {new Date(agent.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                </div>
-                <div className="flex items-center space-x-1 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg text-xs font-bold">
-                  <Trophy className="w-3.5 h-3.5 fill-amber-550 stroke-amber-700" />
-                  <span>{agent.points} XP</span>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {filteredAgents.length === 0 && (
-            <div className="col-span-full bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-12 text-center text-slate-400">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {filteredAgents.length === 0 ? (
+            <div className="bg-slate-50 border-slate-200 border-dashed rounded-2xl p-12 text-center text-slate-400 m-4">
               <Users className="w-10 h-10 mx-auto text-slate-300 mb-3" />
               <p className="text-sm font-bold">No verified agents match your search.</p>
               <p className="text-xs mt-1">Make sure you have approved channel partners in the Admin queue.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {/* Header Row */}
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-4 px-6 py-3.5 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <span>Name / CP ID</span>
+                <span>Agency Name</span>
+                <span>Location</span>
+                <span>Engagement Score</span>
+                <span className="w-5"></span>
+              </div>
+
+              {filteredAgents.map((agent) => {
+                const isExpanded = expandedAgentId === agent.id;
+                return (
+                  <div key={agent.id} className="transition-all hover:bg-slate-50/50">
+                    {/* Main Row */}
+                    <div 
+                      onClick={() => setExpandedAgentId(isExpanded ? null : agent.id)}
+                      className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-4 px-6 py-4.5 items-center cursor-pointer font-bold text-xs text-slate-700"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-650 flex items-center justify-center font-extrabold text-sm shadow-sm shrink-0 border border-indigo-100">
+                          {agent.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-slate-900 text-sm tracking-tight">{agent.name}</p>
+                          <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">{agent.cp_id}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1.5 text-slate-650">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{agent.agency_name}</span>
+                      </div>
+
+                      <div className="flex items-center space-x-1.5 text-slate-650">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{agent.location}</span>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center space-x-1 bg-amber-50 text-amber-700 border border-amber-100/50 px-2.5 py-1 rounded-lg text-xs font-bold w-fit">
+                          <Trophy className="w-3.5 h-3.5 fill-amber-550 stroke-amber-700" />
+                          <span>{agent.points} XP</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pr-2">
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-slate-400 transition" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400 transition" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded Details Row */}
+                    {isExpanded && (
+                      <div className="px-6 pb-5 pt-3.5 bg-slate-50/30 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
+                        <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                          <div className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
+                            <Phone className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Phone Number</p>
+                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">{maskPhone(agent.phone)}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                          <div className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Email Address</p>
+                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">{maskEmail(agent.email || "")}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                          <div className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
+                            <Calendar className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Verification Date</p>
+                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">
+                              {new Date(agent.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
