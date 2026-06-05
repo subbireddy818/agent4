@@ -488,10 +488,10 @@ export default function ManageBuildersPage() {
 
             <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center space-x-2">
               <UserPlus className="w-5 h-5 text-purple-650" />
-              <span>Create Sub-Builder Account</span>
+              <span>Add / Link Sub-Builder</span>
             </h2>
             <p className="text-xs text-slate-400 mb-4">
-              Enter sub-builder details to register them under your organization. They can log in immediately with their phone number without OTP validation.
+              Enter builder details to add them. If the builder is already registered on the platform, a request to link them to your company will be sent to the Admin for approval.
             </p>
 
             <form onSubmit={handleAddBuilderSubmit} className="space-y-4 text-xs font-semibold">
@@ -553,7 +553,7 @@ export default function ManageBuildersPage() {
                 className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition disabled:opacity-60 flex items-center justify-center space-x-1.5 shadow-md shadow-purple-600/20"
               >
                 {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                <span>{adding ? "Creating..." : "Create Account"}</span>
+                <span>Add Builder</span>
               </button>
             </form>
           </div>
