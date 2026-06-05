@@ -231,3 +231,24 @@ export async function assignAgentsToSubBuilder(subBuilderId: string, agentIds: s
     return { ok: false, error: err.message || "Failed to assign agents" };
   }
 }
+
+export async function getIndependentBuilders() {
+  try {
+    const superBuilderId = await getSuperBuilderId();
+    if (!superBuilderId) return { ok: false, error: "Not authenticated" };
+
+    const { data: builders, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, name, phone, agency_name, location")
+      .eq("role", "builder")
+      .is("parent_id", null)
+      .eq("status", "approved")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+    return { ok: true, builders: builders || [] };
+  } catch (err: any) {
+    console.error("Error in getIndependentBuilders:", err);
+    return { ok: false, error: err.message || "Failed to load builders" };
+  }
+}
