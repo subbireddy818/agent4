@@ -3,34 +3,35 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function GET() {
   try {
-    const test1 = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("role", "super_builder")
-      .limit(1)
-      .maybeSingle();
+    const tablesToTest = [
+      "agent_follows_builder",
+      "agent_follow_builder",
+      "agent_followers",
+      "builder_follows",
+      "builder_followers",
+      "followers",
+      "follows",
+      "rsvps",
+      "project_shares"
+    ];
 
-    const superBuilderId = test1.data?.id;
+    const results: Record<string, any> = {};
 
-    if (!superBuilderId) {
-      return NextResponse.json({ error: "No super builder found in db to test with" });
+    for (const table of tablesToTest) {
+      const { error, data } = await supabaseAdmin
+        .from(table)
+        .select("*")
+        .limit(1);
+      
+      if (error) {
+        results[table] = { exists: false, error: error.message, code: error.code };
+      } else {
+        results[table] = { exists: true, count: data.length };
+      }
     }
 
-    const test2 = await supabaseAdmin
-      .from("sub_builder_agent_assignments")
-      .select("sub_builder_id, agent_id, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name)")
-      .eq("super_builder_id", superBuilderId)
-      .limit(5);
-
-    const test3 = await supabaseAdmin
-      .from("agent_follows_builder")
-      .select("builder_id, agent_id, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name)")
-      .limit(5);
-
     return NextResponse.json({
-      superBuilderId,
-      test2: { error: test2.error, data: test2.data },
-      test3: { error: test3.error, data: test3.data }
+      results
     });
   } catch (err: any) {
     return NextResponse.json({ exception: err.message, stack: err.stack });
