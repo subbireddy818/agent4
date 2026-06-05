@@ -17,20 +17,41 @@ export default function BuilderFollowersPage() {
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [assignedAgents, setAssignedAgents] = useState<Follower[]>([]);
   const [activeSubTab, setActiveSubTab] = useState<"followers" | "assigned">("followers");
+  const [isSubBuilder, setIsSubBuilder] = useState(false);
 
-  useEffect(() => { loadFollowers(); }, []);
+  useEffect(() => {
+    loadFollowers();
+    if (typeof window !== "undefined") {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab === "assigned") {
+        setActiveSubTab("assigned");
+      }
+    }
+  }, []);
 
   async function loadFollowers() {
     setLoading(true);
     try {
-      const res = await fetch("/api/agent-follow");
+      const [res, profileRes] = await Promise.all([
+        fetch("/api/agent-follow"),
+        fetch("/api/profile")
+      ]);
+
       if (res.ok) {
         const data = await res.json();
         setFollowers(data.followers || []);
         setAssignedAgents(data.assignedAgents || []);
       }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+
+      if (profileRes.ok) {
+        const profData = await profileRes.json();
+        setIsSubBuilder(!!profData.profile?.parent_id);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function timeAgo(dateStr: string) {
@@ -45,7 +66,7 @@ export default function BuilderFollowersPage() {
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
 
-  const showTabs = assignedAgents.length > 0;
+  const showTabs = isSubBuilder;
   const listToRender = (showTabs && activeSubTab === "assigned") ? assignedAgents : followers;
 
   return (

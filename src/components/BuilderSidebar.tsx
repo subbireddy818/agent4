@@ -13,6 +13,7 @@ export default function BuilderSidebar() {
   const pathname = usePathname();
   const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubBuilder, setIsSubBuilder] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -22,6 +23,7 @@ export default function BuilderSidebar() {
           const data = await res.json();
           if (data.profile) {
             setCredits(data.profile.credits ?? 0);
+            setIsSubBuilder(!!data.profile.parent_id);
           }
         }
       } catch (err) {
@@ -41,6 +43,7 @@ export default function BuilderSidebar() {
     { name: "Campaigns", href: "/builder/campaigns", icon: Megaphone },
     { name: "My Events", href: "/builder/events", icon: Calendar },
     { name: "My Followers", href: "/builder/followers", icon: Users },
+    ...(isSubBuilder ? [{ name: "Assigned Agents", href: "/builder/followers?tab=assigned", icon: Crown }] : []),
     { name: "Agent Directory", href: "/builder/agents", icon: Users },
     { name: "Profile", href: "/builder/profile", icon: User },
   ];
