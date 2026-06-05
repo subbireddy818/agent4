@@ -65,11 +65,34 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 1. Fetch direct builder follows
-    const { data: directFollows } = await supabaseAdmin
-      .from("agent_follows_builder")
-      .select("agent_id, created_at, profiles:profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name, location)")
-      .eq("builder_id", realBuilderId);
+    // 1. Fetch direct builder follows safely without constraint joins
+    let directFollows: any[] = [];
+    try {
+      const { data: followsData, error: followError } = await supabaseAdmin
+        .from("agent_follows_builder")
+        .select("agent_id, created_at")
+        .eq("builder_id", realBuilderId);
+
+      if (followError) {
+        console.warn("Could not load agent_follows_builder:", followError.message);
+      } else if (followsData && followsData.length > 0) {
+        const agentIds = followsData.map((d: any) => d.agent_id);
+        const { data: agentProfiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name, phone, agency_name, location")
+          .in("id", agentIds);
+
+        if (agentProfiles) {
+          directFollows = followsData.map((d: any) => ({
+            agent_id: d.agent_id,
+            created_at: d.created_at,
+            profiles: agentProfiles.find((p: any) => p.id === d.agent_id) || null
+          })).filter((d: any) => d.profiles !== null);
+        }
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch directFollows safely:", e.message);
+    }
 
     // 2. Fetch builder's projects
     const { data: projects } = await supabaseAdmin
@@ -166,10 +189,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ followers: mergedList, assignedAgents: assignedList });
   }
 
-  // Agent gets their following list
+  // Agent gets their following list safely
   if (session.role === "agent") {
-    const { data: following } = await supabaseAdmin.from("agent_follows_builder").select("builder_id").eq("agent_id", session.sub);
-    return NextResponse.json({ following: (following || []).map((f: any) => f.builder_id) });
+    let followingList: string[] = [];
+    try {
+      const { data: following, error } = await supabaseAdmin
+        .from("agent_follows_builder")
+        .select("builder_id")
+        .eq("agent_id", session.sub);
+      if (!error && following) {
+        followingList = following.map((f: any) => f.builder_id);
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch following safely:", e.message);
+    }
+    return NextResponse.json({ following: followingList });
   }
 
   return NextResponse.json({ followers: [] });

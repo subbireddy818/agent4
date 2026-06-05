@@ -53,45 +53,92 @@ export async function getSubBuilders() {
 
     const builderIds = builders.map((b) => b.id);
 
-    // Fetch assignments using supabaseAdmin to bypass RLS
-    const { data: assignments, error: assignError } = await supabaseAdmin
-      .from("sub_builder_agent_assignments")
-      .select("sub_builder_id, agent_id, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name)")
-      .eq("super_builder_id", superBuilderId);
+    // Fetch assignments safely (catch error if table doesn't exist)
+    let assignmentsData: any[] = [];
+    try {
+      const { data, error: assignError } = await supabaseAdmin
+        .from("sub_builder_agent_assignments")
+        .select("sub_builder_id, agent_id")
+        .eq("super_builder_id", superBuilderId);
+      if (assignError) {
+        console.warn("Could not load sub_builder_agent_assignments:", assignError.message);
+      } else {
+        assignmentsData = data || [];
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch sub_builder_agent_assignments safely:", e.message);
+    }
 
-    if (assignError) throw assignError;
+    // Fetch followers safely (catch error if table doesn't exist)
+    let followersData: any[] = [];
+    try {
+      const { data, error: followError } = await supabaseAdmin
+        .from("agent_follows_builder")
+        .select("builder_id, agent_id")
+        .in("builder_id", builderIds);
+      if (followError) {
+        console.warn("Could not load agent_follows_builder:", followError.message);
+      } else {
+        followersData = data || [];
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch agent_follows_builder safely:", e.message);
+    }
 
-    // Fetch followers using supabaseAdmin to bypass RLS
-    const { data: followers, error: followError } = await supabaseAdmin
-      .from("agent_follows_builder")
-      .select("builder_id, agent_id, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name)")
-      .in("builder_id", builderIds);
+    // Resolve all unique agent IDs to fetch their profiles
+    const agentIds = Array.from(
+      new Set([
+        ...assignmentsData.map((a) => a.agent_id),
+        ...followersData.map((f) => f.agent_id)
+      ])
+    );
 
-    if (followError) throw followError;
+    let profilesMap: Record<string, { name: string; phone: string; agency_name: string }> = {};
+    if (agentIds.length > 0) {
+      try {
+        const { data: profiles, error: profilesError } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name, phone, agency_name")
+          .in("id", agentIds);
+        if (profilesError) {
+          console.warn("Could not load profiles for agents:", profilesError.message);
+        } else if (profiles) {
+          profiles.forEach((p) => {
+            profilesMap[p.id] = {
+              name: p.name || "Agent",
+              phone: p.phone || "",
+              agency_name: p.agency_name || ""
+            };
+          });
+        }
+      } catch (e: any) {
+        console.warn("Failed to fetch profiles safely:", e.message);
+      }
+    }
 
     // Map them together
     const buildersWithData = builders.map((builder) => {
-      const builderAssignments = (assignments || [])
+      const builderAssignments = assignmentsData
         .filter((a) => a.sub_builder_id === builder.id)
-        .map((a: any) => {
-          const profiles = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+        .map((a) => {
+          const profile = profilesMap[a.agent_id];
           return {
             agent_id: a.agent_id,
-            name: profiles?.name || "Agent",
-            phone: profiles?.phone || "",
-            agency_name: profiles?.agency_name || ""
+            name: profile?.name || "Agent",
+            phone: profile?.phone || "",
+            agency_name: profile?.agency_name || ""
           };
         });
 
-      const builderFollowers = (followers || [])
+      const builderFollowers = followersData
         .filter((f) => f.builder_id === builder.id)
-        .map((f: any) => {
-          const profiles = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles;
+        .map((f) => {
+          const profile = profilesMap[f.agent_id];
           return {
             agent_id: f.agent_id,
-            name: profiles?.name || "Agent",
-            phone: profiles?.phone || "",
-            agency_name: profiles?.agency_name || ""
+            name: profile?.name || "Agent",
+            phone: profile?.phone || "",
+            agency_name: profile?.agency_name || ""
           };
         });
 
@@ -146,29 +193,85 @@ export async function getSubBuilderDetails(subBuilderId: string) {
     }
 
     // 3. Fetch campaigns created by this sub-builder
-    const { data: campaigns, error: campError } = await supabaseAdmin
-      .from("campaigns")
-      .select("id, name, audience_segment, template, sent_count, read_rate, created_at")
-      .eq("builder_id", subBuilderId)
-      .order("created_at", { ascending: false });
-
-    if (campError) throw campError;
+    let campaigns: any[] = [];
+    try {
+      const { data, error: campError } = await supabaseAdmin
+        .from("campaigns")
+        .select("id, name, audience_segment, template, sent_count, read_rate, created_at")
+        .eq("builder_id", subBuilderId)
+        .order("created_at", { ascending: false });
+      if (campError) {
+        console.warn("Could not load campaigns:", campError.message);
+      } else {
+        campaigns = data || [];
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch campaigns safely:", e.message);
+    }
 
     // 4. Fetch direct followers
-    const { data: followers, error: followError } = await supabaseAdmin
-      .from("agent_follows_builder")
-      .select("agent_id, created_at, profiles!agent_follows_builder_agent_id_fkey(name, phone, agency_name, location)")
-      .eq("builder_id", subBuilderId);
-
-    if (followError) throw followError;
+    let followersData: any[] = [];
+    try {
+      const { data, error: followError } = await supabaseAdmin
+        .from("agent_follows_builder")
+        .select("agent_id, created_at")
+        .eq("builder_id", subBuilderId);
+      if (followError) {
+        console.warn("Could not load agent_follows_builder details:", followError.message);
+      } else {
+        followersData = data || [];
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch agent_follows_builder details safely:", e.message);
+    }
 
     // 5. Fetch assigned agents
-    const { data: assignments, error: assignError } = await supabaseAdmin
-      .from("sub_builder_agent_assignments")
-      .select("agent_id, created_at, profiles!sub_builder_agent_assignments_agent_id_fkey(name, phone, agency_name, location)")
-      .eq("sub_builder_id", subBuilderId);
+    let assignmentsData: any[] = [];
+    try {
+      const { data, error: assignError } = await supabaseAdmin
+        .from("sub_builder_agent_assignments")
+        .select("agent_id, created_at")
+        .eq("sub_builder_id", subBuilderId);
+      if (assignError) {
+        console.warn("Could not load sub_builder_agent_assignments details:", assignError.message);
+      } else {
+        assignmentsData = data || [];
+      }
+    } catch (e: any) {
+      console.warn("Failed to fetch sub_builder_agent_assignments details safely:", e.message);
+    }
 
-    if (assignError) throw assignError;
+    // Resolve unique agent IDs
+    const agentIds = Array.from(
+      new Set([
+        ...followersData.map((f) => f.agent_id),
+        ...assignmentsData.map((a) => a.agent_id)
+      ])
+    );
+
+    let profilesMap: Record<string, { name: string; phone: string; agency_name: string; location: string }> = {};
+    if (agentIds.length > 0) {
+      try {
+        const { data: profiles, error: profilesError } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name, phone, agency_name, location")
+          .in("id", agentIds);
+        if (profilesError) {
+          console.warn("Could not load profiles for agent details:", profilesError.message);
+        } else if (profiles) {
+          profiles.forEach((p) => {
+            profilesMap[p.id] = {
+              name: p.name || "Agent",
+              phone: p.phone || "",
+              agency_name: p.agency_name || "",
+              location: p.location || ""
+            };
+          });
+        }
+      } catch (e: any) {
+        console.warn("Failed to fetch profiles safely:", e.message);
+      }
+    }
 
     return {
       ok: true,
@@ -176,25 +279,25 @@ export async function getSubBuilderDetails(subBuilderId: string) {
       projects: projects || [],
       inventory: inventory || [],
       campaigns: campaigns || [],
-      followers: (followers || []).map((f: any) => {
-        const profiles = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles;
+      followers: followersData.map((f) => {
+        const profile = profilesMap[f.agent_id];
         return {
           id: f.agent_id,
-          name: profiles?.name || "Agent",
-          phone: profiles?.phone || "",
-          agency_name: profiles?.agency_name || "",
-          location: profiles?.location || "",
+          name: profile?.name || "Agent",
+          phone: profile?.phone || "",
+          agency_name: profile?.agency_name || "",
+          location: profile?.location || "",
           created_at: f.created_at
         };
       }),
-      assignments: (assignments || []).map((a: any) => {
-        const profiles = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+      assignments: assignmentsData.map((a) => {
+        const profile = profilesMap[a.agent_id];
         return {
           id: a.agent_id,
-          name: profiles?.name || "Agent",
-          phone: profiles?.phone || "",
-          agency_name: profiles?.agency_name || "",
-          location: profiles?.location || "",
+          name: profile?.name || "Agent",
+          phone: profile?.phone || "",
+          agency_name: profile?.agency_name || "",
+          location: profile?.location || "",
           created_at: a.created_at
         };
       })
