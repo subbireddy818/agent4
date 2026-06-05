@@ -790,6 +790,52 @@ export default function ManageBuildersPage() {
                   )}
                 </div>
 
+                {/* Quick Selection Helpers */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-[10px] font-bold text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 gap-2">
+                  <span className="uppercase tracking-wider">Quick Select ({agents.filter(a => selectedAgentIds.includes(a.id)).length} Selected)</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const filteredIds = agents.filter(a => 
+                          a.name.toLowerCase().includes(agentSearch.toLowerCase()) ||
+                          a.phone.includes(agentSearch) ||
+                          (a.location && a.location.toLowerCase().includes(agentSearch.toLowerCase()))
+                        ).map(a => a.id);
+                        setSelectedAgentIds(prev => Array.from(new Set([...prev, ...filteredIds])));
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const reraIds = agents.filter(a => 
+                          a.is_rera_approved && (
+                            a.name.toLowerCase().includes(agentSearch.toLowerCase()) ||
+                            a.phone.includes(agentSearch) ||
+                            (a.location && a.location.toLowerCase().includes(agentSearch.toLowerCase()))
+                          )
+                        ).map(a => a.id);
+                        setSelectedAgentIds(prev => Array.from(new Set([...prev, ...reraIds])));
+                      }}
+                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-indigo-700 transition"
+                    >
+                      Select RERA Verified
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAgentIds([]);
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+
                 {/* Agents list */}
                 <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1">
                   {agents.filter(a => 
@@ -828,7 +874,14 @@ export default function ManageBuildersPage() {
                               className="rounded border-slate-300 text-purple-650 focus:ring-purple-500 w-4 h-4 cursor-pointer"
                             />
                             <div>
-                              <p className="font-extrabold text-slate-900">{agent.name}</p>
+                              <div className="flex items-center space-x-1.5">
+                                <span className="font-extrabold text-slate-900">{agent.name}</span>
+                                {agent.is_rera_approved && (
+                                  <span className="text-[9px] bg-indigo-100 border border-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded font-extrabold">
+                                    RERA Verified
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-slate-500 mt-0.5">{agent.agency_name || "Independent Agent"} · {agent.phone}</p>
                             </div>
                           </div>

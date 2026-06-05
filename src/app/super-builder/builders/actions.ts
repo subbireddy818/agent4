@@ -171,7 +171,7 @@ export async function getAllAgents() {
   try {
     const { data: agents, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, name, phone, agency_name, location")
+      .select("id, name, phone, agency_name, location, is_rera_approved, rera_number")
       .eq("role", "agent")
       .eq("status", "approved")
       .order("name", { ascending: true });
