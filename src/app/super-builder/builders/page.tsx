@@ -472,94 +472,127 @@ export default function ManageBuildersPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredBuilders.map((builder) => (
-                <div 
-                  key={builder.id} 
-                  onClick={() => handleOpenDetailsModal(builder.id)}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition cursor-pointer"
-                >
-                  <div>
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center font-bold text-purple-700">
-                        {builder.name.charAt(0).toUpperCase()}
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteBuilder(builder.id, builder.name); }}
-                        disabled={deletingBuilderId === builder.id}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                        title="Delete Sub-Builder Profile"
-                      >
-                        {deletingBuilderId === builder.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-
-                    <h3 className="font-extrabold text-slate-900 text-sm">{builder.name}</h3>
-                    <p className="text-xs text-purple-650 font-bold mt-1">{builder.agency_name || "Prestige Sub-Builder"}</p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-500 font-semibold">
-                    <div className="flex items-center space-x-1.5">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{builder.phone}</span>
-                    </div>
-                    {builder.location && (
-                      <div className="flex items-center space-x-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{builder.location}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Assigned Agents & Followers Section */}
-                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5 text-xs">
-                    <div>
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Agents ({assignments.filter(a => a.sub_builder_id === builder.id).length})</span>
-                      {assignments.filter(a => a.sub_builder_id === builder.id).length === 0 ? (
-                        <p className="text-[11px] text-slate-400 italic mt-0.5">No agents assigned.</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {assignments.filter(a => a.sub_builder_id === builder.id).map((a: any) => (
-                            <span key={a.agent_id} className="text-[9px] bg-purple-50 text-purple-700 border border-purple-100 px-1.5 py-0.5 rounded font-extrabold" title={a.profiles?.phone}>
-                              {a.profiles?.name || "Agent"}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Direct Followers ({followers.filter(f => f.builder_id === builder.id).length})</span>
-                      {followers.filter(f => f.builder_id === builder.id).length === 0 ? (
-                        <p className="text-[11px] text-slate-400 italic mt-0.5">No direct followers.</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {followers.filter(f => f.builder_id === builder.id).map((f: any) => (
-                            <span key={f.agent_id} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded font-extrabold" title={f.profiles?.phone}>
-                              {f.profiles?.name || "Agent"}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(builder.id, builder.name); }}
-                      className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider transition flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>Assign Agents</span>
-                    </button>
-                  </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+              <div className="min-w-[900px] divide-y divide-slate-100">
+                {/* List Header */}
+                <div className="grid grid-cols-[1.5fr_1.2fr_1.5fr_1.5fr_auto] gap-4 px-6 py-4 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                  <span>Sub-Builder Info</span>
+                  <span>Contact Details</span>
+                  <span>Assigned Agents</span>
+                  <span>Direct Followers</span>
+                  <span className="text-right">Actions</span>
                 </div>
-              ))}
+                
+                {/* List Rows */}
+                {filteredBuilders.map((builder) => {
+                  const builderAssignments = assignments.filter(a => a.sub_builder_id === builder.id);
+                  const builderFollowers = followers.filter(f => f.builder_id === builder.id);
+                  
+                  return (
+                    <div 
+                      key={builder.id} 
+                      onClick={() => handleOpenDetailsModal(builder.id)}
+                      className="grid grid-cols-[1.5fr_1.2fr_1.5fr_1.5fr_auto] gap-4 px-6 py-4.5 items-center hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      {/* Sub-Builder Info */}
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center font-bold text-purple-700 shrink-0">
+                          {builder.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-slate-900 text-sm">{builder.name}</p>
+                          <p className="text-xs text-purple-650 font-bold mt-0.5">{builder.agency_name || "Prestige Sub-Builder"}</p>
+                        </div>
+                      </div>
+
+                      {/* Contact Details */}
+                      <div className="space-y-1 text-xs text-slate-600 font-semibold">
+                        <div className="flex items-center space-x-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{builder.phone}</span>
+                        </div>
+                        {builder.location && (
+                          <div className="flex items-center space-x-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[11px] text-slate-500">{builder.location}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Assigned Agents */}
+                      <div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Assigned ({builderAssignments.length})</span>
+                        </div>
+                        {builderAssignments.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic mt-0.5">No agents.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
+                            {builderAssignments.slice(0, 3).map((a: any) => (
+                              <span key={a.agent_id} className="text-[9px] bg-purple-50 text-purple-700 border border-purple-100 px-1.5 py-0.5 rounded font-extrabold" title={a.profiles?.phone}>
+                                {a.profiles?.name || "Agent"}
+                              </span>
+                            ))}
+                            {builderAssignments.length > 3 && (
+                              <span className="text-[9px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded font-extrabold">
+                                +{builderAssignments.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Direct Followers */}
+                      <div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Followers ({builderFollowers.length})</span>
+                        </div>
+                        {builderFollowers.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic mt-0.5">No followers.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
+                            {builderFollowers.slice(0, 3).map((f: any) => (
+                              <span key={f.agent_id} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded font-extrabold" title={f.profiles?.phone}>
+                                {f.profiles?.name || "Agent"}
+                              </span>
+                            ))}
+                            {builderFollowers.length > 3 && (
+                              <span className="text-[9px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded font-extrabold">
+                                +{builderFollowers.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleOpenAssignModal(builder.id, builder.name)}
+                          className="px-3 py-1.5 bg-purple-650 hover:bg-purple-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition flex items-center space-x-1.5 shadow-sm cursor-pointer"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Assign</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBuilder(builder.id, builder.name)}
+                          disabled={deletingBuilderId === builder.id}
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition"
+                          title="Delete Sub-Builder Profile"
+                        >
+                          {deletingBuilderId === builder.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
           )}
         </div>
       )}
@@ -1089,13 +1122,17 @@ export default function ManageBuildersPage() {
                         <div className="grid grid-cols-1 gap-4">
                           {builderDetails.projects.map((proj: any) => {
                             const projUnits = builderDetails.inventory.filter((u: any) => u.project_id === proj.id);
+                            const availableCount = projUnits.filter((u: any) => u.status === "available").length;
+                            const soldCount = projUnits.filter((u: any) => u.status === "sold").length;
+                            const bookedCount = projUnits.filter((u: any) => u.status === "booked" || u.status === "blocked" || u.status === "hold").length;
+                            
                             return (
-                              <div key={proj.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                              <div key={proj.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <h4 className="font-extrabold text-sm text-slate-900">{proj.name}</h4>
                                     <p className="text-[11px] text-slate-500 flex items-center mt-0.5 font-semibold">
-                                      <MapPin className="w-3 h-3 mr-0.5" />
+                                      <MapPin className="w-3.5 h-3.5 mr-0.5 text-slate-400" />
                                       {proj.location}
                                     </p>
                                   </div>
@@ -1109,15 +1146,35 @@ export default function ManageBuildersPage() {
                                   </div>
                                 </div>
 
+                                {/* Summary Bar */}
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                  <span className="px-2 py-0.5 bg-slate-100 text-slate-655 rounded border border-slate-200">
+                                    Total Units: {projUnits.length}
+                                  </span>
+                                  {projUnits.length > 0 && (
+                                    <>
+                                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100">
+                                        Available: {availableCount}
+                                      </span>
+                                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-100">
+                                        Booked: {bookedCount}
+                                      </span>
+                                      <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded border border-red-100">
+                                        Sold: {soldCount}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+
                                 {/* Inventory Units list */}
-                                <div className="pt-2 border-t border-slate-100">
+                                <div className="pt-3 border-t border-slate-100">
                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Inventory Units ({projUnits.length})</p>
                                   {projUnits.length === 0 ? (
                                     <p className="text-[11px] text-slate-400 italic">No inventory units uploaded.</p>
                                   ) : (
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                       {projUnits.map((unit: any) => (
-                                        <div key={unit.id} className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex flex-col justify-between text-[11px] font-bold text-slate-700 shadow-sm animate-fade-in">
+                                        <div key={unit.id} className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between text-[11px] font-bold text-slate-700 shadow-sm">
                                           <span className="text-slate-900 truncate">{unit.unit_name}</span>
                                           <div className="flex items-center justify-between mt-1 text-[9px]">
                                             <span className="text-slate-400">
@@ -1154,8 +1211,8 @@ export default function ManageBuildersPage() {
                           <p className="text-xs text-slate-500 font-bold">No campaigns run by this sub-builder.</p>
                         </div>
                       ) : (
-                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-2.5 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                          <div className="grid grid-cols-[1.5fr_1.2fr_1fr_1.2fr] gap-4 px-6 py-3 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100">
                             <span>Campaign Name</span>
                             <span>Target Segment</span>
                             <span>Sent Count</span>
@@ -1163,11 +1220,19 @@ export default function ManageBuildersPage() {
                           </div>
                           <div className="divide-y divide-slate-100">
                             {builderDetails.campaigns.map((camp: any) => (
-                              <div key={camp.id} className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-3 items-center text-xs font-bold text-slate-700">
+                              <div key={camp.id} className="grid grid-cols-[1.5fr_1.2fr_1fr_1.2fr] gap-4 px-6 py-3.5 items-center text-xs font-bold text-slate-700">
                                 <span className="text-slate-900">{camp.name}</span>
                                 <span className="text-slate-500">{camp.audience_segment}</span>
                                 <span>{camp.sent_count}</span>
-                                <span className="text-purple-650">{camp.read_rate}%</span>
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div 
+                                      className="bg-purple-600 h-1.5 rounded-full" 
+                                      style={{ width: `${camp.read_rate}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-purple-750 font-extrabold">{camp.read_rate}%</span>
+                                </div>
                               </div>
                             ))}
                           </div>
