@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, X } from "lucide-react";
+import { getNewSimulatedMessages } from "@/app/auth/actions";
 
 export default function WhatsAppSimulationWidget() {
   const [showBotModal, setShowBotModal] = useState(false);
@@ -11,11 +12,46 @@ export default function WhatsAppSimulationWidget() {
   ]);
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll chat to bottom
   useEffect(() => {
     if (chatBodyRef.current) {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
   }, [chatHistory, showBotModal]);
+
+  const fetchFullHistory = async () => {
+    try {
+      let rawPhone = localStorage.getItem("agentsapp_logged_in_phone");
+      if (!rawPhone) {
+        rawPhone = localStorage.getItem("agentsapp_sim_phone");
+      }
+      if (!rawPhone) return;
+
+      const res = await getNewSimulatedMessages(rawPhone, "2000-01-01T00:00:00.000Z");
+      if (res.ok && res.messages) {
+        const welcomeMsg = "🤖 Bot: Welcome to AgentsApp!\nTry sending 'hi' or 'help' to see what I can do!";
+        const msgs = [welcomeMsg];
+        res.messages.forEach((msg: any) => {
+          if (msg.direction === "inbound") {
+            msgs.push(`👤 You: ${msg.content}`);
+          } else {
+            const botContent = msg.content.startsWith("🤖") ? msg.content : `🤖 Bot:\n${msg.content}`;
+            msgs.push(botContent);
+          }
+        });
+        setChatHistory(msgs);
+      }
+    } catch (err) {
+      console.error("Error fetching chat history", err);
+    }
+  };
+
+  // Load history on mount and poll
+  useEffect(() => {
+    fetchFullHistory();
+    const interval = setInterval(fetchFullHistory, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +128,7 @@ export default function WhatsAppSimulationWidget() {
       });
 
       const data = await response.json();
-      // Add bot reply prefix if not already present
+      // We optimistically show the reply, but it will also be synced by the next poll
       const rawReply = data.reply || "Processed successfully.";
       const botReply = rawReply.startsWith("🤖") ? rawReply : `🤖 Bot: ${rawReply}`;
       setChatHistory(prev => [...prev, botReply]);
