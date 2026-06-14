@@ -17,58 +17,65 @@ export async function getCampaignsAction() {
   }
 }
 
-export async function getCampaignDetailsAction(campaignName: string, createdAt: string) {
+export async function getCampaignDetailsAction(
+  campaignName: string,
+  createdAt: string,
+  audienceSegment: string = ""
+) {
   try {
-    // 1. Fetch all approved agents
-    const { data: agents, error: agentsError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, name, phone, agency_name, location")
-      .eq("role", "agent")
-      .eq("status", "approved")
-      .order("name", { ascending: true });
+    // Determine which agents to show based on campaign filter
+    const segmentLower = audienceSegment.toLowerCase();
+    const isRera = segmentLower.includes("rera");
 
+    let agentQuery = supabaseAdmin
+      .from("profiles")
+      .select("id, name, phone, agency_name, location, status, is_rera_approved")
+      .eq("role", "agent");
+
+    if (isRera) {
+      // RERA campaign: show only RERA-approved agents
+      agentQuery = agentQuery.eq("is_rera_approved", true);
+    } else {
+      // Verified / All campaigns: show all approved agents
+      agentQuery = agentQuery.eq("status", "approved");
+    }
+
+    const { data: agents, error: agentsError } = await agentQuery.order("name", { ascending: true });
     if (agentsError) throw agentsError;
 
-    // 2. Fetch outbound whatsapp messages related to this campaign
-    // Builder broadcast messages start with exactly "*Campaign Name*"
-    const searchPattern = `*${campaignName}*`;
-    
-    // Fetch messages sent around the time the campaign was created
-    // We add a 24-hour buffer to be safe, though they are usually sent immediately
-    const startDate = new Date(new Date(createdAt).getTime() - 1000 * 60 * 60).toISOString();
-    const endDate = new Date(new Date(createdAt).getTime() + 1000 * 60 * 60 * 24).toISOString();
+    // Time window: 2 hours before campaign → 4 hours after (tight window avoids cross-campaign bleeding)
+    const createdMs = new Date(createdAt).getTime();
+    const startDate = new Date(createdMs - 1000 * 60 * 120).toISOString(); // 2h before
+    const endDate   = new Date(createdMs + 1000 * 60 * 240).toISOString(); // 4h after
 
+    // Fetch all outbound messages in that window that have an agent_id attached
+    // We match by agent_id (reliable) instead of content (unreliable, format varies)
     const { data: messages, error: msgsError } = await supabaseAdmin
       .from("whatsapp_messages")
-      .select("id, phone, agent_id, outbound_status, created_at, content")
+      .select("agent_id, phone")
       .eq("direction", "outbound")
       .gte("created_at", startDate)
-      .lte("created_at", endDate);
+      .lte("created_at", endDate)
+      .not("agent_id", "is", null);
 
     if (msgsError) throw msgsError;
 
-    // Filter messages in memory because ILIKE or specific text matching might be tricky with standard supabase client
-    const campaignMessages = (messages || []).filter((msg) => 
-      msg.content && msg.content.includes(searchPattern)
+    // Build lookup sets
+    const sentAgentIds = new Set((messages || []).map((m) => m.agent_id));
+    const sentPhones   = new Set(
+      (messages || []).map((m) => (m.phone || "").replace(/\D/g, ""))
     );
 
-    const sentPhones = new Set(campaignMessages.map((msg) => {
-      // Normalize the phone number format from the messages log to match the profile phone
-      // The profile phone might be "+91 99999 99999" or "9999999999"
-      // So we'll just extract the digits for comparison
-      return (msg.phone || "").replace(/\D/g, "");
-    }));
-    
-    const sentAgentIds = new Set(campaignMessages.filter(msg => msg.agent_id).map(msg => msg.agent_id));
-
-    // 3. Map status to each agent
+    // Map delivery status to each agent
     const mappedAgents = (agents || []).map((agent) => {
       const agentPhoneDigits = (agent.phone || "").replace(/\D/g, "");
-      const isSent = sentAgentIds.has(agent.id) || (agentPhoneDigits && sentPhones.has(agentPhoneDigits));
-      
+      const isSent =
+        sentAgentIds.has(agent.id) ||
+        (agentPhoneDigits.length > 0 && sentPhones.has(agentPhoneDigits));
+
       return {
         ...agent,
-        status: isSent ? "Sent" : "Didn't send"
+        status: isSent ? "Sent" : "Didn't send",
       };
     });
 

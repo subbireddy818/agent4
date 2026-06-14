@@ -36,7 +36,11 @@ export default function AdminCampaignsMonitor() {
     setFilterStatus("All");
     setLoadingDetails(true);
 
-    const res = await getCampaignDetailsAction(campaign.name, campaign.created_at);
+    const res = await getCampaignDetailsAction(
+      campaign.name,
+      campaign.created_at,
+      campaign.audience_segment || ""
+    );
     if (res.ok) {
       setAgents(res.agents);
     } else {
@@ -189,6 +193,19 @@ export default function AdminCampaignsMonitor() {
                 </div>
               </div>
             </div>
+
+            {/* Zero-reach warning */}
+            {selectedCampaign.sent_count === 0 && (
+              <div className="mx-4 mt-3 mb-0 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-semibold flex items-start gap-2">
+                <span className="text-lg leading-none">⚠️</span>
+                <span>
+                  This campaign reached <strong>0 agents</strong>. This usually means the filter (e.g. RERA Only) had no matching agents in the database at launch time.
+                  {selectedCampaign.audience_segment?.toLowerCase().includes("rera") && (
+                    <> Check that agents have their <strong>RERA Approved</strong> toggle turned ON in the Verification page.</>
+                  )}
+                </span>
+              </div>
+            )}
 
             {/* Search & Filter */}
             <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 shrink-0">
