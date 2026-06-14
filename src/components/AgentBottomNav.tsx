@@ -6,16 +6,30 @@ import {
   Home, Users, Briefcase, Calendar, 
   Award, User, MessageSquare, X 
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getNewSimulatedMessages } from "@/app/auth/actions";
 
 export default function AgentBottomNav() {
   const pathname = usePathname();
   const [showBotModal, setShowBotModal] = useState(false);
-  const [chatHistory, setChatHistory] = useState<string[]>([
-    "🤖 Bot: Welcome Sreenivas! How can I help you today? You can write in natural English or Hinglish.",
-  ]);
+  const [agentName, setAgentName] = useState("Agent");
+  const [chatHistory, setChatHistory] = useState<string[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const chatBodyRef = useRef<HTMLDivElement>(null);
+
+  // Load agent name from localStorage
+  useEffect(() => {
+    const name = localStorage.getItem("agentsapp_logged_in_user") || "Agent";
+    setAgentName(name.split(" ")[0]); // First name only
+    setChatHistory([`🤖 Bot: Welcome ${name.split(" ")[0]}! How can I help you today? You can write in natural English or Hinglish.`]);
+  }, []);
+
+  // Auto-scroll chat to bottom whenever history changes or modal opens
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, [chatHistory, showBotModal]);
 
   // Poll for simulated outbound broadcasts (builder campaigns) directed to this agent
   useEffect(() => {
@@ -93,14 +107,13 @@ export default function AgentBottomNav() {
 
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput) return;
+    if (!chatInput.trim()) return;
 
-    const userMsg = `👤 You: ${chatInput}`;
-    const promptToSend = chatInput;
-    
-    // Render user message optimistically
-    setChatHistory(prev => [...prev, userMsg]);
+    const promptToSend = chatInput.trim();
     setChatInput("");
+    
+    // Render user message optimistically (don't save to DB - inbound is saved by the webhook)
+    setChatHistory(prev => [...prev, `👤 You: ${promptToSend}`]);
 
     try {
       const rawPhone = localStorage.getItem("agentsapp_logged_in_phone") || "+91 98765 43210";
@@ -155,7 +168,9 @@ export default function AgentBottomNav() {
       });
 
       const data = await response.json();
-      const botReply = data.reply || "🤖 Bot: Processed webhook action successfully.";
+      // Add bot reply prefix if not already present
+      const rawReply = data.reply || "Processed successfully.";
+      const botReply = rawReply.startsWith("🤖") ? rawReply : `🤖 Bot: ${rawReply}`;
       setChatHistory(prev => [...prev, botReply]);
     } catch (err: any) {
       setChatHistory(prev => [...prev, `🤖 Bot: ❌ Failed to dispatch webhook: ${err.message}`]);
@@ -218,7 +233,7 @@ export default function AgentBottomNav() {
           </div>
 
           {/* Chat Body */}
-          <div className="flex-1 p-3 overflow-y-auto bg-[#efeae2] text-[10px] space-y-2">
+          <div ref={chatBodyRef} className="flex-1 p-3 overflow-y-auto bg-[#efeae2] text-[10px] space-y-2">
             {chatHistory.map((msg, i) => {
               const isBot = msg.startsWith("🤖");
               return (
@@ -249,7 +264,13 @@ export default function AgentBottomNav() {
               <button
                 key={idx}
                 type="button"
-                onClick={() => setChatInput(item.cmd)}
+                onClick={() => {
+                  setChatInput(item.cmd);
+                  // Auto-submit chip commands after a tick so the input is set
+                  setTimeout(() => {
+                    document.getElementById("chatbot-submit-btn")?.click();
+                  }, 50);
+                }}
                 className="bg-white/95 active:bg-slate-200 border border-slate-200/60 text-slate-700 text-[8px] font-bold py-1 px-2.5 rounded-full whitespace-nowrap shadow-sm transition hover:scale-105 shrink-0"
               >
                 {item.label}
@@ -267,6 +288,7 @@ export default function AgentBottomNav() {
               className="flex-1 bg-white border border-slate-200 rounded-full py-1.5 px-3 text-[10px] text-slate-800 outline-none focus:border-[#25d366] transition"
             />
             <button 
+              id="chatbot-submit-btn"
               type="submit"
               className="w-7 h-7 rounded-full bg-[#25d366] text-white flex items-center justify-center text-xs font-bold shrink-0 hover:bg-[#16c47f]"
             >
