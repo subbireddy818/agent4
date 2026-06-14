@@ -126,6 +126,12 @@ export async function launchCampaignAction(
         return { ok: false, error: campaignError.message };
     }
 
+    const targetMeta = {
+      verification: audienceSegment || "all",
+      locations: targetLocations || []
+    };
+    const metaString = `\n\n<!-- TARGET: ${JSON.stringify(targetMeta)} -->`;
+
     // 2. Insert into events table so it shows up in agent's launches tab
     const { error: eventError } = await supabaseAdmin
       .from("events")
@@ -133,8 +139,7 @@ export async function launchCampaignAction(
         title: name,
         date,
         location,
-        description,
-        target_locations: targetLocations || [],
+        description: `${description}${metaString}`,
       });
 
     if (eventError) {
