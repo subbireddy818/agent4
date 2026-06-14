@@ -197,7 +197,7 @@ export async function saveProjectAction(
         const channelId = process.env.GALLABOX_CHANNEL_ID;
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agent4-ochre.vercel.app";
 
-        Promise.all(agents.map(async (agent) => {
+        await Promise.all(agents.map(async (agent) => {
             if (!agent.phone) return;
             const digits = agent.phone.replace(/\D/g, "");
             const finalPhone = digits.length === 10 ? `91${digits}` : digits;
@@ -250,7 +250,7 @@ export async function saveProjectAction(
                     outbound_status: status,
                     error_message: errMsg
                 });
-        })).catch(console.error);
+        }));
     }
 
     return { ok: true };
