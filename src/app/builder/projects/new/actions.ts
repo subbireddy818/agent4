@@ -82,7 +82,7 @@ export async function saveProjectAction(
     // Get the targeted agents count for credits validation
     let agentQuery = supabaseAdmin
       .from("profiles")
-      .select("phone")
+      .select("id, phone")
       .eq("role", "agent");
 
     if (recipientFilter === "verified") {
@@ -197,17 +197,19 @@ export async function saveProjectAction(
         const channelId = process.env.GALLABOX_CHANNEL_ID;
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agent4-ochre.vercel.app";
 
-        if (!apiKey || !apiSecret || !channelId) {
-            console.warn("GallaBox not configured, skipping WhatsApp notifications.");
-        } else {
-            Promise.all(agents.map(async (agent) => {
+        Promise.all(agents.map(async (agent) => {
+            if (!agent.phone) return;
+            const digits = agent.phone.replace(/\D/g, "");
+            const finalPhone = digits.length === 10 ? `91${digits}` : digits;
+
+            const followUrl = `${baseUrl}/agent/follow?project_id=${project.id}`;
+            const messageText = `🚀 *New Project Launched!*\n\n*${name}* in ${location} is now live on the platform.\nStarting at ${priceEstimate}.\n\nTap the link below to follow and track this project:\n${followUrl}`;
+
+            let status = 0;
+            let errMsg: string | null = null;
+
+            if (apiKey && apiSecret && channelId) {
                 try {
-                    const digits = agent.phone.replace(/\D/g, "");
-                    const finalPhone = digits.length === 10 ? `91${digits}` : digits;
-
-                    const followUrl = `${baseUrl}/agent/follow?project_id=${project.id}`;
-                    const text = `🚀 *New Project Launched!*\n\n*${name}* in ${location} is now live on the platform.\nStarting at ${priceEstimate}.\n\nTap the link below to follow and track this project:\n${followUrl}`;
-
                     const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
                         method: "POST",
                         headers: {
@@ -219,16 +221,36 @@ export async function saveProjectAction(
                             channelId,
                             channelType: "whatsapp",
                             recipient: { name: "Agent", phone: finalPhone },
-                            whatsapp: { type: "text", text: { body: text } }
+                            whatsapp: { type: "text", text: { body: messageText } }
                         })
                     });
-                    const data = await res.json();
-                    console.log(`WhatsApp sent to ${agent.phone}:`, JSON.stringify(data));
-                } catch (err) {
-                    console.error("Error notifying agent via WhatsApp:", agent.phone, err);
+                    status = res.status;
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        errMsg = JSON.stringify(errData).slice(0, 500);
+                    }
+                } catch (fetchErr: any) {
+                    console.error("GallaBox send error:", fetchErr);
+                    errMsg = fetchErr.message || String(fetchErr);
                 }
-            })).catch(console.error);
-        }
+            } else {
+                errMsg = "GallaBox not configured (simulated)";
+            }
+
+            // Always write the message to the audit log so the agent's web chatbot can poll and receive it automatically
+            await supabaseAdmin
+                .from("whatsapp_messages")
+                .insert({
+                    direction: "outbound",
+                    phone: agent.phone,
+                    agent_id: agent.id,
+                    message_type: "text",
+                    content: messageText,
+                    source: apiKey && apiSecret && channelId ? "gallabox" : "simulator",
+                    outbound_status: status,
+                    error_message: errMsg
+                });
+        })).catch(console.error);
     }
 
     return { ok: true };
