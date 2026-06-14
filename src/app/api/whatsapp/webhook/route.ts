@@ -374,6 +374,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "success", reply: replyRegPrompt });
     }
 
+    if (commandLower.startsWith("register") || commandLower.includes("register")) {
+      const replyAlready = `🤖 Bot: You are already registered!\n\nYour account status is: *${profile.status}*.\n\n⚠️ If your account is pending, please reply with your *RERA Document, Aadhar, and PAN* to get verified.`;
+      await sendOutboundReply(replyAlready);
+      return NextResponse.json({ status: "success", reply: replyAlready });
+    }
+
     if (commandLower === "help" || commandLower === "commands" || commandLower === "hi" || commandLower === "hello" || commandLower === "menu") {
       // Role-based menu: show different options depending on agent/builder/admin
       let helpMsg = "";
