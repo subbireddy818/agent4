@@ -306,10 +306,16 @@ export async function POST(req: NextRequest) {
     if (!profile) {
       // Check if they want to register
       if (commandLower.startsWith("register") || commandLower.includes("register")) {
-        const match = commandText.match(/register\s+(.+)\s+agency\s+(.*)/i);
+        // Try parsing with phone number first, then fallback to without phone
+        const matchWithPhone = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*)/i);
+        const matchWithoutPhone = commandText.match(/register\s+(.*?)\s+agency\s+(.*)/i);
+        
+        const match = matchWithPhone || matchWithoutPhone;
+
         if (match) {
           let regName = match[1].trim();
-          let regAgency = match[2].trim();
+          let regPhone = matchWithPhone ? match[2].trim() : formattedPhone;
+          let regAgency = matchWithPhone ? match[3].trim() : match[2].trim();
 
           // Strip square brackets if the user typed them literally
           if (regName.startsWith("[") && regName.endsWith("]")) {
@@ -318,16 +324,26 @@ export async function POST(req: NextRequest) {
           if (regAgency.startsWith("[") && regAgency.endsWith("]")) {
             regAgency = regAgency.slice(1, -1).trim();
           }
+          if (regPhone.startsWith("[") && regPhone.endsWith("]")) {
+            regPhone = regPhone.slice(1, -1).trim();
+          }
+
+          // Format provided phone number
+          const cleanInputPhone = regPhone.replace(/\D/g, "");
+          const finalPhoneForDb = cleanInputPhone.length >= 10 
+            ? `+91 ${cleanInputPhone.slice(-10).slice(0, 5)} ${cleanInputPhone.slice(-10).slice(5)}` 
+            : formattedPhone;
+
           const generatedId = `CP-${Math.floor(1000 + Math.random() * 9000)}`;
 
           const { data: newProfile, error } = await supabase
             .from("profiles")
             .insert([{
-              phone: formattedPhone,
+              phone: finalPhoneForDb,
               name: regName,
               agency_name: regAgency,
               role: "agent",
-              status: "approved", // Auto-approved for frictionless demo
+              status: "pending", // Now set to pending so Admin can approve
               cp_id: generatedId,
               points: 500,
               referrals_count: 0
@@ -341,19 +357,19 @@ export async function POST(req: NextRequest) {
             await sendOutboundReply(replyErr);
             return NextResponse.json({ status: "error", reply: replyErr });
           } else {
-            const replyOk = `🎉 *Registration Successful!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\nYour agentsapp account is now live! Type *aa help* to see all commands.`;
+            const replyOk = `🎉 *Registration Successful!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
             await sendOutboundReply(replyOk);
             return NextResponse.json({ status: "success", reply: replyOk });
           }
         } else {
-          const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] agency [Agency Name]"_\n\n(Example: _"aa Register Amit Sharma agency Sunrise Realty"_ )`;
+          const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Agency Name]"_\n\n(Example: _"aa Register Amit Sharma phone 9876543210 agency Sunrise Realty"_ )`;
           await sendOutboundReply(replyFormat);
           return NextResponse.json({ status: "success", reply: replyFormat });
         }
       }
 
       // If not a registration command, ask them to register
-      const replyRegPrompt = `🤖 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register [Your Name] agency [Your Agency Name]"_`;
+      const replyRegPrompt = `🤖 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Your Agency Name]"_`;
       await sendOutboundReply(replyRegPrompt);
       return NextResponse.json({ status: "success", reply: replyRegPrompt });
     }
