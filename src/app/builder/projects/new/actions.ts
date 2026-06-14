@@ -195,7 +195,7 @@ export async function saveProjectAction(
         const apiKey = process.env.GALLABOX_API_KEY;
         const apiSecret = process.env.GALLABOX_API_SECRET;
         const channelId = process.env.GALLABOX_CHANNEL_ID;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agent4-ochre.vercel.app";
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://agentsapp.online";
 
         await Promise.all(agents.map(async (agent) => {
             if (!agent.phone) return;
