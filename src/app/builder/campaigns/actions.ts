@@ -86,20 +86,10 @@ export async function launchCampaignAction(
 
     const cost = agents?.length || 0;
     
-    // Resolve credits validation and deduction from parent super builder if sub-builder
+    // Resolve credits validation and deduction.
+    // Sub-builders now use their own assigned credits.
     let targetProfile = profile;
     let builderCredits = profile.credits || 0;
-    if (profile.parent_id) {
-      const { data: parentProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("id, credits")
-        .eq("id", profile.parent_id)
-        .maybeSingle();
-      if (parentProfile) {
-        targetProfile = parentProfile;
-        builderCredits = parentProfile.credits || 0;
-      }
-    }
 
     if (builderCredits < cost) {
       return { 
