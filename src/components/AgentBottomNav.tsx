@@ -19,13 +19,38 @@ export default function AgentBottomNav() {
 
   // Poll for simulated outbound broadcasts (builder campaigns) directed to this agent
   useEffect(() => {
-    // Record the mount time so we only fetch messages created after the page opened
+    // Record the mount time to poll for new messages
     const startTime = new Date().toISOString();
     const seenIds = new Set<string>();
+    const rawPhone = localStorage.getItem("agentsapp_logged_in_phone") || "+91 98765 43210";
 
+    // 1. Load historical messages (e.g. from the last 24 hours)
+    const loadHistory = async () => {
+      try {
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const res = await getNewSimulatedMessages(rawPhone, yesterday);
+        if (res.ok && res.messages && res.messages.length > 0) {
+          const historyMsgs: string[] = [];
+          res.messages.forEach((msg: any) => {
+            if (!seenIds.has(msg.id)) {
+              seenIds.add(msg.id);
+              historyMsgs.push(`🤖 Bot (Broadcast):\n${msg.content}`);
+            }
+          });
+          if (historyMsgs.length > 0) {
+            setChatHistory(prev => [...prev, ...historyMsgs]);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading historical broadcasts:", err);
+      }
+    };
+    
+    loadHistory();
+
+    // 2. Poll for new messages
     const interval = setInterval(async () => {
       try {
-        const rawPhone = localStorage.getItem("agentsapp_logged_in_phone") || "+91 98765 43210";
         const res = await getNewSimulatedMessages(rawPhone, startTime);
         if (res.ok && res.messages && res.messages.length > 0) {
           const newMsgs: string[] = [];
