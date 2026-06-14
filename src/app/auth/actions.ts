@@ -760,3 +760,30 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
   }
 }
 
+// -----------------------------------------------------------------------------
+// getNewSimulatedMessages — fetches new simulated outbound broadcasts
+// -----------------------------------------------------------------------------
+export async function getNewSimulatedMessages(
+  phone: string,
+  since: string
+): Promise<{ ok: boolean; messages?: any[]; error?: string }> {
+  try {
+    const formattedPhone = formatPhone(phone);
+    if (!formattedPhone) return { ok: false, error: "Invalid phone number" };
+
+    const { data, error } = await supabaseAdmin
+      .from("whatsapp_messages")
+      .select("id, content, created_at")
+      .eq("phone", formattedPhone)
+      .eq("direction", "outbound")
+      .gt("created_at", since)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    return { ok: true, messages: data || [] };
+  } catch (err: any) {
+    console.error("getNewSimulatedMessages error:", err);
+    return { ok: false, error: err.message || String(err) };
+  }
+}
+

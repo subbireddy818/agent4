@@ -69,7 +69,7 @@ export async function launchCampaignAction(
     // Build agent query to count targeted agents for validation
     let agentQuery = supabaseAdmin
       .from("profiles")
-      .select("phone, name, location")
+      .select("id, phone, name, location")
       .eq("role", "agent")
       .eq("status", "approved");
 
@@ -152,42 +152,72 @@ export async function launchCampaignAction(
         return { ok: false, error: eventError.message };
     }
 
-    // 3. Send WhatsApp message to filtered agents based on location
+    // 3. Send/Log WhatsApp message to filtered agents based on location
     const apiKey = process.env.GALLABOX_API_KEY;
     const apiSecret = process.env.GALLABOX_API_SECRET;
     const channelId = process.env.GALLABOX_CHANNEL_ID;
 
-    if (apiKey && apiSecret && channelId && agents && agents.length > 0) {
+    if (agents && agents.length > 0) {
       for (const agent of agents) {
         if (!agent.phone) continue;
         const cleanPhone = agent.phone.replace(/\D/g, "");
         const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        const messageText = `*${name}*\n\n${description}\n\nDate: ${date}\nLocation: ${location}`;
 
-        await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
-          method: "POST",
-          headers: {
-            "apiKey": apiKey,
-            "apiSecret": apiSecret,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            channelId: channelId,
-            channelType: "whatsapp",
-            recipient: {
-              name: agent.name || "Agent",
-              phone: finalPhone
-            },
-            whatsapp: {
-              type: "text",
-              text: {
-                body: `*${name}*\n\n${description}\n\nDate: ${date}\nLocation: ${location}`
-              }
+        let status = 0;
+        let errMsg: string | null = null;
+
+        if (apiKey && apiSecret && channelId) {
+          try {
+            const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
+              method: "POST",
+              headers: {
+                "apiKey": apiKey,
+                "apiSecret": apiSecret,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                channelId: channelId,
+                channelType: "whatsapp",
+                recipient: {
+                  name: agent.name || "Agent",
+                  phone: finalPhone
+                },
+                whatsapp: {
+                  type: "text",
+                  text: {
+                    body: messageText
+                  }
+                }
+              })
+            });
+            status = res.status;
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              errMsg = JSON.stringify(errData).slice(0, 500);
             }
-          })
-        }).catch(err => console.error("GallaBox send error:", err));
+          } catch (fetchErr: any) {
+            console.error("GallaBox send error:", fetchErr);
+            errMsg = fetchErr.message || String(fetchErr);
+          }
+        } else {
+          errMsg = "GallaBox not configured (simulated)";
+        }
+
+        // Always write the message to the audit log so the agent's web chatbot can poll and receive it automatically
+        await supabaseAdmin
+          .from("whatsapp_messages")
+          .insert({
+            direction: "outbound",
+            phone: agent.phone,
+            agent_id: agent.id,
+            message_type: "text",
+            content: messageText,
+            source: apiKey && apiSecret && channelId ? "gallabox" : "simulator",
+            outbound_status: status,
+            error_message: errMsg
+          });
       }
-    } else if (!apiKey || !apiSecret || !channelId) {
-      console.warn("GallaBox credentials missing, skipping WhatsApp broadcasts.");
     }
 
     return { ok: true, sentCount: cost };

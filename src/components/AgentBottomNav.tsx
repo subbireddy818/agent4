@@ -6,7 +6,8 @@ import {
   Home, Users, Briefcase, Calendar, 
   Award, User, MessageSquare, X 
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getNewSimulatedMessages } from "@/app/auth/actions";
 
 export default function AgentBottomNav() {
   const pathname = usePathname();
@@ -15,6 +16,38 @@ export default function AgentBottomNav() {
     "🤖 Bot: Welcome Sreenivas! How can I help you today? You can write in natural English or Hinglish.",
   ]);
   const [chatInput, setChatInput] = useState("");
+
+  // Poll for simulated outbound broadcasts (builder campaigns) directed to this agent
+  useEffect(() => {
+    // Record the mount time so we only fetch messages created after the page opened
+    const startTime = new Date().toISOString();
+    const seenIds = new Set<string>();
+
+    const interval = setInterval(async () => {
+      try {
+        const rawPhone = localStorage.getItem("agentsapp_logged_in_phone") || "+91 98765 43210";
+        const res = await getNewSimulatedMessages(rawPhone, startTime);
+        if (res.ok && res.messages && res.messages.length > 0) {
+          const newMsgs: string[] = [];
+          res.messages.forEach((msg: any) => {
+            if (!seenIds.has(msg.id)) {
+              seenIds.add(msg.id);
+              newMsgs.push(`🤖 Bot (Broadcast):\n${msg.content}`);
+            }
+          });
+          if (newMsgs.length > 0) {
+            setChatHistory(prev => [...prev, ...newMsgs]);
+            // Automatically open the bot modal when a new campaign broadcast arrives so the agent sees it instantly
+            setShowBotModal(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error polling simulated broadcasts:", err);
+      }
+    }, 4000); // Check every 4 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const menuItems = [
     { name: "Home", href: "/agent/dashboard", icon: Home },
@@ -129,86 +162,84 @@ export default function AgentBottomNav() {
         <MessageSquare className="w-5 h-5" />
       </button>
 
-      {/* WhatsApp Chat Simulation Modal */}
+      {/* WhatsApp Chat Simulation Widget */}
       {showBotModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm glass-panel rounded-2xl border border-slate-200 shadow-2xl overflow-hidden relative flex flex-col h-[450px] animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="bg-[#075e54] text-white px-4 py-3 flex items-center justify-between shrink-0">
-              <div className="flex items-center space-x-2">
-                <div className="w-7 h-7 rounded-full bg-[#128c7e] flex items-center justify-center font-bold text-xs">
-                  WA
-                </div>
-                <div>
-                  <div className="font-bold text-xs">agentsapp Bot</div>
-                  <div className="text-[8px] text-[#4ade80]">online · GallaBox API</div>
-                </div>
+        <div className="fixed bottom-24 lg:bottom-20 right-6 z-50 w-[380px] max-w-[calc(100vw-32px)] h-[500px] max-h-[calc(100vh-140px)] bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 duration-300">
+          {/* Header */}
+          <div className="bg-[#075e54] text-white px-4 py-3 flex items-center justify-between shrink-0">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-full bg-[#128c7e] flex items-center justify-center font-bold text-xs">
+                WA
               </div>
-              <button 
-                onClick={() => setShowBotModal(false)}
-                className="text-slate-200 hover:text-white p-1 hover:bg-[#128c7e] rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div>
+                <div className="font-bold text-xs">agentsapp Bot</div>
+                <div className="text-[8px] text-[#4ade80]">online · Simulated</div>
+              </div>
             </div>
-
-            {/* Chat Body */}
-            <div className="flex-1 p-3 overflow-y-auto bg-[#efeae2] text-[10px] space-y-2">
-              {chatHistory.map((msg, i) => {
-                const isBot = msg.startsWith("🤖");
-                return (
-                  <div key={i} className={`flex flex-col ${isBot ? "items-start" : "items-end"}`}>
-                    <div className={`max-w-[85%] rounded-lg p-2.5 shadow-sm whitespace-pre-line leading-relaxed ${
-                      isBot ? "bg-white text-slate-800 rounded-tl-none" : "bg-[#d9fdd3] text-slate-800 rounded-tr-none font-medium"
-                    }`}>
-                      {msg}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Quick Suggestion Chips */}
-            <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
-              {[
-                { label: "ℹ️ Help", cmd: "help" },
-                { label: "🆕 Add Ravi (3BHK)", cmd: "Add Ravi looking for 3BHK" },
-                { label: "🏢 East-facing Plots", cmd: "Show east-facing plots" },
-                { label: "⏰ Remind Tomorrow", cmd: "Remind me tomorrow to call Ramesh" },
-                { label: "📁 Skyline Brochure", cmd: "Send Skyline brochure" },
-                { label: "🚀 Upcoming Launches", cmd: "Upcoming launches" },
-                { label: "🎥 Register Webinar", cmd: "Register webinar" },
-                { label: "📋 My Leads", cmd: "my leads" },
-                { label: "⚡ Status Site Visit", cmd: "Amit site visit" }
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setChatInput(item.cmd)}
-                  className="bg-white/95 active:bg-slate-200 border border-slate-200/60 text-slate-700 text-[8px] font-bold py-1 px-2.5 rounded-full whitespace-nowrap shadow-sm transition hover:scale-105 shrink-0"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Chat Footer Input */}
-            <form onSubmit={handleSendChat} className="p-2 bg-[#f0f2f5] border-t border-slate-200 flex items-center space-x-2 shrink-0">
-              <input 
-                type="text"
-                placeholder="e.g. add lead Ravi 3BHK"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className="flex-1 bg-white border border-slate-200 rounded-full py-1.5 px-3 text-[10px] text-slate-800 outline-none focus:border-[#25d366] transition"
-              />
-              <button 
-                type="submit"
-                className="w-7 h-7 rounded-full bg-[#25d366] text-white flex items-center justify-center text-xs font-bold shrink-0 hover:bg-[#16c47f]"
-              >
-                ➔
-              </button>
-            </form>
+            <button 
+              onClick={() => setShowBotModal(false)}
+              className="text-slate-200 hover:text-white p-1 hover:bg-[#128c7e] rounded transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
+
+          {/* Chat Body */}
+          <div className="flex-1 p-3 overflow-y-auto bg-[#efeae2] text-[10px] space-y-2">
+            {chatHistory.map((msg, i) => {
+              const isBot = msg.startsWith("🤖");
+              return (
+                <div key={i} className={`flex flex-col ${isBot ? "items-start" : "items-end"}`}>
+                  <div className={`max-w-[85%] rounded-lg p-2.5 shadow-sm whitespace-pre-line leading-relaxed ${
+                    isBot ? "bg-white text-slate-800 rounded-tl-none" : "bg-[#d9fdd3] text-slate-800 rounded-tr-none font-medium"
+                  }`}>
+                    {msg}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Suggestion Chips */}
+          <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
+            {[
+              { label: "ℹ️ Help", cmd: "help" },
+              { label: "🆕 Add Ravi (3BHK)", cmd: "Add Ravi looking for 3BHK" },
+              { label: "🏢 East-facing Plots", cmd: "Show east-facing plots" },
+              { label: "⏰ Remind Tomorrow", cmd: "Remind me tomorrow to call Ramesh" },
+              { label: "📁 Skyline Brochure", cmd: "Send Skyline brochure" },
+              { label: "🚀 Upcoming Launches", cmd: "Upcoming launches" },
+              { label: "🎥 Register Webinar", cmd: "Register webinar" },
+              { label: "📋 My Leads", cmd: "my leads" },
+              { label: "⚡ Status Site Visit", cmd: "Amit site visit" }
+            ].map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setChatInput(item.cmd)}
+                className="bg-white/95 active:bg-slate-200 border border-slate-200/60 text-slate-700 text-[8px] font-bold py-1 px-2.5 rounded-full whitespace-nowrap shadow-sm transition hover:scale-105 shrink-0"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Chat Footer Input */}
+          <form onSubmit={handleSendChat} className="p-2 bg-[#f0f2f5] border-t border-slate-200 flex items-center space-x-2 shrink-0">
+            <input 
+              type="text"
+              placeholder="e.g. add lead Ravi 3BHK"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              className="flex-1 bg-white border border-slate-200 rounded-full py-1.5 px-3 text-[10px] text-slate-800 outline-none focus:border-[#25d366] transition"
+            />
+            <button 
+              type="submit"
+              className="w-7 h-7 rounded-full bg-[#25d366] text-white flex items-center justify-center text-xs font-bold shrink-0 hover:bg-[#16c47f]"
+            >
+              ➔
+            </button>
+          </form>
         </div>
       )}
     </>
