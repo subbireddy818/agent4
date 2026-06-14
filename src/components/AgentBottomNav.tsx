@@ -24,11 +24,11 @@ export default function AgentBottomNav() {
     const seenIds = new Set<string>();
     const rawPhone = localStorage.getItem("agentsapp_logged_in_phone") || "+91 98765 43210";
 
-    // 1. Load historical messages (e.g. from the last 24 hours)
+    // 1. Load historical messages (lifetime)
     const loadHistory = async () => {
       try {
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const res = await getNewSimulatedMessages(rawPhone, yesterday);
+        const beginningOfTime = "2000-01-01T00:00:00.000Z";
+        const res = await getNewSimulatedMessages(rawPhone, beginningOfTime);
         if (res.ok && res.messages && res.messages.length > 0) {
           const historyMsgs: string[] = [];
           res.messages.forEach((msg: any) => {
