@@ -765,19 +765,25 @@ export async function loginWithPhone(input: { phone: string; role?: string }): P
 // -----------------------------------------------------------------------------
 export async function getNewSimulatedMessages(
   phone: string,
-  since: string
+  since: string,
+  direction?: "inbound" | "outbound"
 ): Promise<{ ok: boolean; messages?: any[]; error?: string }> {
   try {
     const formattedPhone = formatPhone(phone);
     if (!formattedPhone) return { ok: false, error: "Invalid phone number" };
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("whatsapp_messages")
-      .select("id, content, created_at")
+      .select("id, content, created_at, direction")
       .eq("phone", formattedPhone)
-      .eq("direction", "outbound")
       .gt("created_at", since)
       .order("created_at", { ascending: true });
+
+    if (direction) {
+      query = query.eq("direction", direction);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return { ok: true, messages: data || [] };

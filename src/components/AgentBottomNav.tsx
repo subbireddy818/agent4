@@ -34,7 +34,11 @@ export default function AgentBottomNav() {
           res.messages.forEach((msg: any) => {
             if (!seenIds.has(msg.id)) {
               seenIds.add(msg.id);
-              historyMsgs.push(`🤖 Bot (Broadcast):\n${msg.content}`);
+              if (msg.direction === "inbound") {
+                historyMsgs.push(`👤 You: ${msg.content}`);
+              } else {
+                historyMsgs.push(`🤖 Bot:\n${msg.content}`);
+              }
             }
           });
           if (historyMsgs.length > 0) {
@@ -51,13 +55,17 @@ export default function AgentBottomNav() {
     // 2. Poll for new messages
     const interval = setInterval(async () => {
       try {
-        const res = await getNewSimulatedMessages(rawPhone, startTime);
+        const res = await getNewSimulatedMessages(rawPhone, startTime, "outbound");
         if (res.ok && res.messages && res.messages.length > 0) {
           const newMsgs: string[] = [];
           res.messages.forEach((msg: any) => {
             if (!seenIds.has(msg.id)) {
               seenIds.add(msg.id);
-              newMsgs.push(`🤖 Bot (Broadcast):\n${msg.content}`);
+              if (msg.direction === "inbound") {
+                newMsgs.push(`👤 You: ${msg.content}`);
+              } else {
+                newMsgs.push(`🤖 Bot:\n${msg.content}`);
+              }
             }
           });
           if (newMsgs.length > 0) {

@@ -188,11 +188,15 @@ export async function POST(req: NextRequest) {
       payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.id ||
       null;
 
+    // Format phone number to match the database profile representation: "+91 98765 43210"
+    const last10Digits = fromPhoneRaw.slice(-10);
+    const formattedPhone = `+91 ${last10Digits.slice(0, 5)} ${last10Digits.slice(5)}`;
+
     // Audit-log the inbound message immediately. We don't know the
     // agent_id yet; the lookup happens further down.
     await logWhatsappMessage({
       direction: "inbound",
-      phone: fromPhoneRaw,
+      phone: formattedPhone, // Fix: use formattedPhone
       wamid,
       message_type: "text",
       content: textBody,
@@ -222,9 +226,7 @@ export async function POST(req: NextRequest) {
 
     const commandLower = commandText.toLowerCase();
 
-    // Format phone number to match the database profile representation: "+91 98765 43210"
-    const last10Digits = fromPhoneRaw.slice(-10);
-    const formattedPhone = `+91 ${last10Digits.slice(0, 5)} ${last10Digits.slice(5)}`;
+    // formattedPhone is already defined above
 
     // Outbound helper to send messages back via GallaBox WhatsApp API
     const sendOutboundReply = async (replyText: string) => {
@@ -237,7 +239,7 @@ export async function POST(req: NextRequest) {
       if (!apiKey || !apiSecret || !channelId || isFromSimulator) {
         await logWhatsappMessage({
           direction: "outbound",
-          phone: fromPhoneRaw,
+          phone: formattedPhone, // Fix: use formattedPhone so it matches history polls
           message_type: "text",
           content: replyText,
           source,
