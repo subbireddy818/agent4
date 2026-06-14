@@ -23,24 +23,15 @@ export async function getCampaignDetailsAction(
   audienceSegment: string = ""
 ) {
   try {
-    // Determine which agents to show based on campaign filter
-    const segmentLower = audienceSegment.toLowerCase();
-    const isRera = segmentLower.includes("rera");
-
-    let agentQuery = supabaseAdmin
+    // Always fetch ALL approved agents so the admin can see everyone
+    // Sent vs "Didn't send" is determined purely by the WhatsApp message log
+    const { data: agents, error: agentsError } = await supabaseAdmin
       .from("profiles")
       .select("id, name, phone, agency_name, location, status, is_rera_approved")
-      .eq("role", "agent");
+      .eq("role", "agent")
+      .eq("status", "approved")
+      .order("name", { ascending: true });
 
-    if (isRera) {
-      // RERA campaign: show only RERA-approved agents
-      agentQuery = agentQuery.eq("is_rera_approved", true);
-    } else {
-      // Verified / All campaigns: show all approved agents
-      agentQuery = agentQuery.eq("status", "approved");
-    }
-
-    const { data: agents, error: agentsError } = await agentQuery.order("name", { ascending: true });
     if (agentsError) throw agentsError;
 
     // Time window: 2 hours before campaign → 4 hours after (tight window avoids cross-campaign bleeding)
