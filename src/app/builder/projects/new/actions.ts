@@ -192,6 +192,16 @@ export async function saveProjectAction(
     });
 
     if (agents && agents.length > 0) {
+        // Also record this broadcast in the campaigns table so it shows up in Admin Monitor
+        await supabaseAdmin.from("campaigns").insert({
+            builder_id: profile.id,
+            name: name,
+            audience_segment: `Launch: ${targetLocations && targetLocations.length > 0 ? targetLocations.join(", ") : "All Areas"} - ${recipientFilter}`,
+            template: "project_launch",
+            sent_count: cost,
+            read_rate: 0.0,
+        });
+
         const apiKey = process.env.GALLABOX_API_KEY;
         const apiSecret = process.env.GALLABOX_API_SECRET;
         const channelId = process.env.GALLABOX_CHANNEL_ID;
