@@ -251,15 +251,15 @@ export default function AgentBottomNav() {
           {/* Quick Suggestion Chips */}
           <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
             {[
-              { label: "ℹ️ Help", cmd: "help" },
+              { label: "ℹ️ Help", cmd: "help", autoSubmit: true },
               { label: "🆕 Add Lead", cmd: "add lead [Name] phone [Number] location [Area] budget [Price]", autoSubmit: false },
-              { label: "🏢 East-facing Plots", cmd: "Show east-facing plots" },
-              { label: "⏰ Remind Tomorrow", cmd: "Remind me tomorrow to call Ramesh" },
-              { label: "📁 Skyline Brochure", cmd: "Send Skyline brochure" },
-              { label: "🚀 Upcoming Launches", cmd: "Upcoming launches" },
-              { label: "🎥 Register Webinar", cmd: "Register webinar" },
-              { label: "📋 My Leads", cmd: "my leads" },
-              { label: "⚡ Status Site Visit", cmd: "Amit site visit" }
+              { label: "🔍 Search", cmd: "Search [Location/BHK/Type]", autoSubmit: false },
+              { label: "⏰ Set Reminder", cmd: "Remind me to call [Name] time [Date/Time]", autoSubmit: false },
+              { label: "📁 Get Brochure", cmd: "Send [Project Name] brochure", autoSubmit: false },
+              { label: "🚀 Upcoming Launches", cmd: "Upcoming launches", autoSubmit: true },
+              { label: "🎥 Register Webinar", cmd: "Register webinar", autoSubmit: true },
+              { label: "📋 My Leads", cmd: "my leads", autoSubmit: true },
+              { label: "⚡ Update Status", cmd: "[Lead Name] site visit", autoSubmit: false }
             ].map((item, idx) => (
               <button
                 key={idx}
