@@ -12,7 +12,8 @@ export async function launchCampaignAction(
   date: string,
   location: string,
   description: string,
-  targetLocations?: string[]
+  targetLocations?: string[],
+  recipientFilter?: "all" | "verified" | "rera"
 ): Promise<{ ok: boolean; error?: string; sentCount?: number }> {
   try {
     let profile: any = null;
@@ -70,8 +71,13 @@ export async function launchCampaignAction(
     let agentQuery = supabaseAdmin
       .from("profiles")
       .select("id, phone, name, location")
-      .eq("role", "agent")
-      .eq("status", "approved");
+      .eq("role", "agent");
+
+    if (recipientFilter === "verified") {
+      agentQuery = agentQuery.eq("status", "approved");
+    } else if (recipientFilter === "rera") {
+      agentQuery = agentQuery.eq("is_rera_approved", true);
+    }
 
     // Filter by specific locations if provided
     if (targetLocations && targetLocations.length > 0) {

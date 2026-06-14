@@ -31,19 +31,24 @@ export default function CampaignBuilder() {
   const [estimatedReach, setEstimatedReach] = useState(0);
 
   // Audience filters options from schema spec
-  const [verifyFilter, setVerifyFilter] = useState(true);
+  const [recipientFilter, setRecipientFilter] = useState<"all" | "verified" | "rera">("all");
 
   useEffect(() => {
     fetchEstimatedReach();
-  }, [selectedLocations]);
+  }, [selectedLocations, recipientFilter]);
 
   async function fetchEstimatedReach() {
     try {
       let query = supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "agent")
-        .eq("status", "approved");
+        .eq("role", "agent");
+
+      if (recipientFilter === "verified") {
+        query = query.eq("status", "approved");
+      } else if (recipientFilter === "rera") {
+        query = query.eq("is_rera_approved", true);
+      }
 
       if (selectedLocations.length > 0) {
         query = query.in("location", selectedLocations);
@@ -81,9 +86,10 @@ export default function CampaignBuilder() {
     setSending(true);
     
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
+    const filterName = recipientFilter === "all" ? "All Agents" : recipientFilter === "verified" ? "Verified Only" : "RERA Only";
     const audienceStr = selectedLocations.length > 0 
-      ? `Locations: ${selectedLocations.join(", ")} - ${filters.join(", ")}`
-      : `All Hyderabad - ${filters.join(", ")}`;
+      ? `Locations: ${selectedLocations.join(", ")} - ${filterName} ${filters.length > 0 ? `(${filters.join(", ")})` : ""}`
+      : `All Hyderabad - ${filterName} ${filters.length > 0 ? `(${filters.join(", ")})` : ""}`;
 
     const res = await launchCampaignAction(
       phone,
@@ -93,7 +99,8 @@ export default function CampaignBuilder() {
       eventDate,
       eventLocation,
       message,
-      selectedLocations.length > 0 ? selectedLocations : undefined
+      selectedLocations.length > 0 ? selectedLocations : undefined,
+      recipientFilter
     );
 
     setSending(false);
@@ -243,18 +250,19 @@ export default function CampaignBuilder() {
               </div>
             </div>
 
-            {/* Additional Filters */}
+            {/* Verification Filter */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600">
               <div className="space-y-1.5 pt-1">
-                <label className="flex items-center space-x-2 cursor-pointer font-bold">
-                  <input 
-                    type="checkbox" 
-                    checked={verifyFilter} 
-                    onChange={(e) => setVerifyFilter(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                  />
-                  <span>Verified Agents Only</span>
-                </label>
+                <label className="block uppercase tracking-wider text-[10px]">Verification Filter</label>
+                <select 
+                  value={recipientFilter}
+                  onChange={(e) => setRecipientFilter(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3 text-slate-800 outline-none text-xs font-semibold transition"
+                >
+                  <option value="all">To All Agents</option>
+                  <option value="verified">Only Verified Agents</option>
+                  <option value="rera">RERA Approved Agents</option>
+                </select>
               </div>
             </div>
 
