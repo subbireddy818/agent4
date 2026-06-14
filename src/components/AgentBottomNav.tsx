@@ -252,7 +252,7 @@ export default function AgentBottomNav() {
           <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
             {[
               { label: "ℹ️ Help", cmd: "help" },
-              { label: "🆕 Add Ravi (3BHK)", cmd: "Add Ravi looking for 3BHK" },
+              { label: "🆕 Add Lead", cmd: "add lead [Name] phone [Number] location [Area] budget [Price]", autoSubmit: false },
               { label: "🏢 East-facing Plots", cmd: "Show east-facing plots" },
               { label: "⏰ Remind Tomorrow", cmd: "Remind me tomorrow to call Ramesh" },
               { label: "📁 Skyline Brochure", cmd: "Send Skyline brochure" },
@@ -266,10 +266,18 @@ export default function AgentBottomNav() {
                 type="button"
                 onClick={() => {
                   setChatInput(item.cmd);
-                  // Auto-submit chip commands after a tick so the input is set
-                  setTimeout(() => {
-                    document.getElementById("chatbot-submit-btn")?.click();
-                  }, 50);
+                  
+                  if (item.autoSubmit !== false) {
+                    // Auto-submit chip commands after a tick so the input is set
+                    setTimeout(() => {
+                      document.getElementById("chatbot-submit-btn")?.click();
+                    }, 50);
+                  } else {
+                    // Just focus the input so they can fill in the template
+                    setTimeout(() => {
+                      document.getElementById("chatbot-input-field")?.focus();
+                    }, 50);
+                  }
                 }}
                 className="bg-white/95 active:bg-slate-200 border border-slate-200/60 text-slate-700 text-[8px] font-bold py-1 px-2.5 rounded-full whitespace-nowrap shadow-sm transition hover:scale-105 shrink-0"
               >
@@ -281,6 +289,7 @@ export default function AgentBottomNav() {
           {/* Chat Footer Input */}
           <form onSubmit={handleSendChat} className="p-2 bg-[#f0f2f5] border-t border-slate-200 flex items-center space-x-2 shrink-0">
             <input 
+              id="chatbot-input-field"
               type="text"
               placeholder="e.g. add lead Ravi 3BHK"
               value={chatInput}
