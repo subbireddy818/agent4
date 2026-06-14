@@ -64,8 +64,7 @@ export async function sendWhatsAppText(
     };
   }
 
-  const cleanPhone = rawPhone.replace(/\D/g, "");
-  const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
 
   try {
     const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
