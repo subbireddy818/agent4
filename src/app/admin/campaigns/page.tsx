@@ -49,12 +49,19 @@ export default function AdminCampaignsMonitor() {
     setLoadingDetails(false);
   }
 
-  const filteredAgents = agents.filter(agent => {
-    const matchesSearch = (agent.name || "").toLowerCase().includes(searchAgent.toLowerCase()) || 
-                          (agent.phone || "").includes(searchAgent);
-    const matchesStatus = filterStatus === "All" || agent.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredAgents = agents
+    .filter(agent => {
+      const matchesSearch = (agent.name || "").toLowerCase().includes(searchAgent.toLowerCase()) || 
+                            (agent.phone || "").includes(searchAgent);
+      const matchesStatus = filterStatus === "All" || agent.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    })
+    // Sort: Sent first, Didn't send second
+    .sort((a, b) => {
+      if (a.status === "Sent" && b.status !== "Sent") return -1;
+      if (a.status !== "Sent" && b.status === "Sent") return 1;
+      return (a.name || "").localeCompare(b.name || "");
+    });
 
   const sentCount = agents.filter(a => a.status === "Sent").length;
   const notSentCount = agents.length - sentCount;
@@ -181,15 +188,21 @@ export default function AdminCampaignsMonitor() {
             </div>
 
             {/* Metrics Bar */}
-            <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 bg-slate-50 shrink-0">
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 bg-slate-50 shrink-0">
               <div className="p-3 text-center">
-                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Total Agents Selected</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Targeted</div>
                 <div className="text-lg font-black text-slate-800">{selectedCampaign.sent_count}</div>
               </div>
               <div className="p-3 text-center bg-emerald-50/50">
-                <div className="text-[10px] uppercase font-bold text-emerald-600 mb-0.5">Actually Delivered</div>
+                <div className="text-[10px] uppercase font-bold text-emerald-600 mb-0.5">✅ Sent</div>
                 <div className="text-lg font-black text-emerald-700">
                   {loadingDetails ? "..." : sentCount}
+                </div>
+              </div>
+              <div className="p-3 text-center bg-red-50/50">
+                <div className="text-[10px] uppercase font-bold text-red-400 mb-0.5">❌ Didn't Send</div>
+                <div className="text-lg font-black text-red-600">
+                  {loadingDetails ? "..." : notSentCount}
                 </div>
               </div>
             </div>

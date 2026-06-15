@@ -23,13 +23,12 @@ export async function getCampaignDetailsAction(
   audienceSegment: string = ""
 ) {
   try {
-    // Always fetch ALL approved agents so the admin can see everyone
+    // Always fetch ALL agents (any status) so admin sees the full picture
     // Sent vs "Didn't send" is determined purely by the WhatsApp message log
     const { data: agents, error: agentsError } = await supabaseAdmin
       .from("profiles")
       .select("id, name, phone, agency_name, location, status, is_rera_approved")
       .eq("role", "agent")
-      .eq("status", "approved")
       .order("name", { ascending: true });
 
     if (agentsError) throw agentsError;
