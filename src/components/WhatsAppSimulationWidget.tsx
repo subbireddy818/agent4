@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, X } from "lucide-react";
 import { getNewSimulatedMessages } from "@/app/auth/actions";
+import { HYDERABAD_LOCATIONS } from "@/lib/hyderabadLocations";
 
 export default function WhatsAppSimulationWidget() {
   const [showBotModal, setShowBotModal] = useState(false);
@@ -10,6 +11,12 @@ export default function WhatsAppSimulationWidget() {
   const [chatHistory, setChatHistory] = useState<string[]>([
     "🤖 Bot: Welcome to AgentsApp!\nTry sending 'hi' or 'help' to see what I can do!"
   ]);
+  const [showRegForm, setShowRegForm] = useState(false);
+  const [regName, setRegName] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regAgency, setRegAgency] = useState("");
+  const [regLocation, setRegLocation] = useState("");
+  const [regInterested, setRegInterested] = useState("");
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -188,6 +195,48 @@ export default function WhatsAppSimulationWidget() {
                 </div>
               );
             })}
+
+            {showRegForm && (
+              <div className="flex flex-col items-start mt-2">
+                <div className="max-w-[95%] bg-white text-slate-800 rounded-lg rounded-tl-none border border-slate-200 p-3 shadow-sm w-full space-y-2.5">
+                  <div className="font-bold text-xs text-[#25d366] pb-1 border-b border-slate-100">Agent Registration</div>
+                  <input type="text" placeholder="Full Name" value={regName} onChange={e => setRegName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  <input type="text" placeholder="Phone Number" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  <input type="text" placeholder="Agency Name" value={regAgency} onChange={e => setRegAgency(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  <select value={regLocation} onChange={e => setRegLocation(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white">
+                    <option value="" disabled>Select Area in Hyderabad</option>
+                    {HYDERABAD_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                  </select>
+                  <select value={regInterested} onChange={e => setRegInterested(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white">
+                    <option value="" disabled>Interested In (Property Type)</option>
+                    <option value="Apartment">Apartment</option>
+                    <option value="Villa">Villa</option>
+                    <option value="Plot">Plot</option>
+                    <option value="Commercial">Commercial</option>
+                  </select>
+                  <div className="flex space-x-2 pt-1.5">
+                    <button 
+                      onClick={() => {
+                        if (!regName || !regPhone || !regAgency || !regLocation || !regInterested) {
+                          alert("Please fill all fields");
+                          return;
+                        }
+                        setShowRegForm(false);
+                        const cmd = `aa Register ${regName} phone ${regPhone} agency ${regAgency} location ${regLocation} interested in ${regInterested}`;
+                        setChatInput(cmd);
+                        setTimeout(() => document.getElementById("chatbot-submit-btn")?.click(), 50);
+                      }}
+                      className="bg-[#25d366] text-white px-3 py-1.5 rounded font-bold hover:bg-[#16c47f] flex-1 text-center transition"
+                    >
+                      Submit
+                    </button>
+                    <button onClick={() => setShowRegForm(false)} className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded font-bold hover:bg-slate-200 transition">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Suggestion Chips */}
@@ -208,6 +257,16 @@ export default function WhatsAppSimulationWidget() {
                 key={idx}
                 type="button"
                 onClick={() => {
+                  if (item.label.includes("Register") && !item.label.includes("Webinar")) {
+                    setShowRegForm(true);
+                    setTimeout(() => {
+                      if (chatBodyRef.current) {
+                        chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+                      }
+                    }, 50);
+                    return;
+                  }
+
                   setChatInput(item.cmd);
                   
                   if (item.autoSubmit !== false) {
