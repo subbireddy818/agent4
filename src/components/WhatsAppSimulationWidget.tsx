@@ -222,7 +222,10 @@ export default function WhatsAppSimulationWidget() {
                     <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Location(s)</label>
                     <button
                       type="button"
-                      onClick={() => setIsLocDropdownOpen(!isLocDropdownOpen)}
+                      onClick={() => {
+                        setIsLocDropdownOpen(!isLocDropdownOpen);
+                        if (!isLocDropdownOpen) setIsPropDropdownOpen(false);
+                      }}
                       className="w-full border border-slate-200 rounded-md p-1.5 text-xs text-left bg-white outline-none focus:border-[#25d366]"
                     >
                       {regLocation.length > 0 ? (regLocation.length > 2 ? `${regLocation.length} selected` : regLocation.join(", ")) : "Select Areas in Hyderabad"}
@@ -253,7 +256,10 @@ export default function WhatsAppSimulationWidget() {
                     <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Property Types (Interested In)</label>
                     <button
                       type="button"
-                      onClick={() => setIsPropDropdownOpen(!isPropDropdownOpen)}
+                      onClick={() => {
+                        setIsPropDropdownOpen(!isPropDropdownOpen);
+                        if (!isPropDropdownOpen) setIsLocDropdownOpen(false);
+                      }}
                       className="w-full border border-slate-200 rounded-md p-1.5 text-xs text-left bg-white outline-none focus:border-[#25d366]"
                     >
                       {regInterested.length > 0 ? (regInterested.length > 2 ? `${regInterested.length} selected` : regInterested.join(", ")) : "Select Property Types"}
