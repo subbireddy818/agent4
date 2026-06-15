@@ -32,10 +32,11 @@ export default function CampaignBuilder() {
 
   // Audience filters options from schema spec
   const [recipientFilter, setRecipientFilter] = useState<"all" | "verified" | "rera">("all");
+  const [interestedPropertyTarget, setInterestedPropertyTarget] = useState("All");
 
   useEffect(() => {
     fetchEstimatedReach();
-  }, [selectedLocations, recipientFilter]);
+  }, [selectedLocations, recipientFilter, interestedPropertyTarget]);
 
   async function fetchEstimatedReach() {
     try {
@@ -52,6 +53,10 @@ export default function CampaignBuilder() {
 
       if (selectedLocations.length > 0) {
         query = query.in("location", selectedLocations);
+      }
+
+      if (interestedPropertyTarget !== "All") {
+        query = query.contains("interested_properties", [interestedPropertyTarget]);
       }
 
       const { count } = await query;
@@ -87,9 +92,10 @@ export default function CampaignBuilder() {
     
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
     const filterName = recipientFilter === "all" ? "All Agents" : recipientFilter === "verified" ? "Verified Only" : "RERA Only";
+    const propertyTypeName = interestedPropertyTarget !== "All" ? `${interestedPropertyTarget} Only` : "All Types";
     const audienceStr = selectedLocations.length > 0 
-      ? `Locations: ${selectedLocations.join(", ")} - ${filterName} ${filters.length > 0 ? `(${filters.join(", ")})` : ""}`
-      : `All Hyderabad - ${filterName} ${filters.length > 0 ? `(${filters.join(", ")})` : ""}`;
+      ? `Locations: ${selectedLocations.join(", ")} - ${filterName} - ${propertyTypeName}`
+      : `All Hyderabad - ${filterName} - ${propertyTypeName}`;
 
     const res = await launchCampaignAction(
       phone,
@@ -100,7 +106,8 @@ export default function CampaignBuilder() {
       eventLocation,
       message,
       selectedLocations.length > 0 ? selectedLocations : undefined,
-      recipientFilter
+      recipientFilter,
+      interestedPropertyTarget
     );
 
     setSending(false);
@@ -252,17 +259,34 @@ export default function CampaignBuilder() {
 
             {/* Verification Filter */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600">
-              <div className="space-y-1.5 pt-1">
-                <label className="block uppercase tracking-wider text-[10px]">Verification Filter</label>
-                <select 
-                  value={recipientFilter}
-                  onChange={(e) => setRecipientFilter(e.target.value as any)}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3 text-slate-800 outline-none text-xs font-semibold transition"
-                >
-                  <option value="all">To All Agents</option>
-                  <option value="verified">Only Verified Agents</option>
-                  <option value="rera">RERA Approved Agents</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5 pt-1">
+                  <label className="block uppercase tracking-wider text-[10px]">Verification Filter</label>
+                  <select 
+                    value={recipientFilter}
+                    onChange={(e) => setRecipientFilter(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3 text-slate-800 outline-none text-xs font-semibold transition"
+                  >
+                    <option value="all">To All Agents</option>
+                    <option value="verified">Only Verified Agents</option>
+                    <option value="rera">RERA Approved Agents</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <label className="block uppercase tracking-wider text-[10px]">Interested In Filter</label>
+                  <select 
+                    value={interestedPropertyTarget}
+                    onChange={(e) => setInterestedPropertyTarget(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3 text-slate-800 outline-none text-xs font-semibold transition"
+                  >
+                    <option value="All">All Types</option>
+                    <option value="Apartment">Apartments Only</option>
+                    <option value="Plot">Plots Only</option>
+                    <option value="Villa">Villas Only</option>
+                    <option value="Commercial">Commercial Only</option>
+                  </select>
+                </div>
               </div>
             </div>
 

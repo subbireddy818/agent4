@@ -13,7 +13,8 @@ export async function launchCampaignAction(
   location: string,
   description: string,
   targetLocations?: string[],
-  recipientFilter?: "all" | "verified" | "rera"
+  recipientFilter?: "all" | "verified" | "rera",
+  interestedPropertyTarget?: string
 ): Promise<{ ok: boolean; error?: string; sentCount?: number }> {
   try {
     let profile: any = null;
@@ -82,6 +83,10 @@ export async function launchCampaignAction(
     // Filter by specific locations if provided
     if (targetLocations && targetLocations.length > 0) {
       agentQuery = agentQuery.in("location", targetLocations);
+    }
+
+    if (interestedPropertyTarget && interestedPropertyTarget !== "All") {
+      agentQuery = agentQuery.contains("interested_properties", [interestedPropertyTarget]);
     }
 
     const { data: agents, error: agentsError } = await agentQuery;

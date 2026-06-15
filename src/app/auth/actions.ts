@@ -393,6 +393,7 @@ export interface SubmitKycInput {
   email: string;
   reraNumber: string;
   location?: string;
+  interestedProperties?: string[];
   refCode?: string | null;
 }
 
@@ -418,9 +419,11 @@ async function submitKycImpl(input: SubmitKycInput): Promise<SubmitKycResult> {
     !input.fullName?.trim() ||
     !input.agencyName?.trim() ||
     !input.email?.trim() ||
-    !input.reraNumber?.trim()
+    !input.reraNumber?.trim() ||
+    !input.interestedProperties ||
+    input.interestedProperties.length === 0
   ) {
-    return { ok: false, error: "All fields are required." };
+    return { ok: false, error: "All fields are required including interested property types." };
   }
 
   // Proof of phone ownership: there must be an OTP session for this phone
@@ -465,6 +468,7 @@ async function submitKycImpl(input: SubmitKycInput): Promise<SubmitKycResult> {
         points: 0,
         referrals_count: 0,
         location: input.location || "Hyderabad",
+        interested_properties: input.interestedProperties,
       },
     ])
     .select()

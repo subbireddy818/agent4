@@ -25,7 +25,8 @@ export async function saveProjectAction(
   type: string,
   units: ParsedUnit[],
   recipientFilter?: "all" | "verified" | "rera",
-  targetLocations?: string[]
+  targetLocations?: string[],
+  interestedPropertyTarget?: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     let profile: any = null;
@@ -93,6 +94,11 @@ export async function saveProjectAction(
 
     if (targetLocations && targetLocations.length > 0) {
       agentQuery = agentQuery.in("location", targetLocations);
+    }
+
+    if (interestedPropertyTarget && interestedPropertyTarget !== "All") {
+      // Use contains for array column
+      agentQuery = agentQuery.contains("interested_properties", [interestedPropertyTarget]);
     }
 
     const { data: agents, error: agentsError } = await agentQuery;
@@ -193,10 +199,12 @@ export async function saveProjectAction(
 
     if (agents && agents.length > 0) {
         // Also record this broadcast in the campaigns table so it shows up in Admin Monitor
+        const audienceName = `Launch: ${targetLocations && targetLocations.length > 0 ? targetLocations.join(", ") : "All Areas"} - ${recipientFilter} - ${interestedPropertyTarget || "All Types"}`;
+        
         await supabaseAdmin.from("campaigns").insert({
             builder_id: profile.id,
             name: name,
-            audience_segment: `Launch: ${targetLocations && targetLocations.length > 0 ? targetLocations.join(", ") : "All Areas"} - ${recipientFilter}`,
+            audience_segment: audienceName,
             template: "project_launch",
             sent_count: cost,
             read_rate: 0.0,
