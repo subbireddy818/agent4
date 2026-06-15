@@ -17,6 +17,7 @@ export default function WhatsAppSimulationWidget() {
   const [regAgency, setRegAgency] = useState("");
   const [regLocation, setRegLocation] = useState<string[]>([]);
   const [regInterested, setRegInterested] = useState<string[]>([]);
+  const [isLocDropdownOpen, setIsLocDropdownOpen] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -203,14 +204,36 @@ export default function WhatsAppSimulationWidget() {
                   <input type="text" placeholder="Full Name" value={regName} onChange={e => setRegName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   <input type="text" placeholder="Phone Number" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   <input type="text" placeholder="Agency Name" value={regAgency} onChange={e => setRegAgency(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
-                  <p className="text-[10px] text-slate-500 font-medium mb-1">Hold Ctrl/Cmd to select multiple</p>
-                  <select multiple value={regLocation} onChange={e => {
-                    const opts = Array.from(e.target.selectedOptions, option => option.value);
-                    setRegLocation(opts);
-                  }} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white h-24">
-                    <option value="" disabled>Select Areas in Hyderabad</option>
-                    {HYDERABAD_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsLocDropdownOpen(!isLocDropdownOpen)}
+                      className="w-full border border-slate-200 rounded-md p-1.5 text-xs text-left bg-white outline-none focus:border-[#25d366]"
+                    >
+                      {regLocation.length > 0 ? (regLocation.length > 2 ? `${regLocation.length} selected` : regLocation.join(", ")) : "Select Areas in Hyderabad"}
+                    </button>
+                    {isLocDropdownOpen && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-32 overflow-y-auto">
+                        {HYDERABAD_LOCATIONS.map(loc => (
+                          <label key={loc} className="flex items-center px-2 py-1.5 text-[11px] hover:bg-slate-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="mr-2"
+                              checked={regLocation.includes(loc)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setRegLocation([...regLocation, loc]);
+                                } else {
+                                  setRegLocation(regLocation.filter(l => l !== loc));
+                                }
+                              }}
+                            />
+                            {loc}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <select multiple value={regInterested} onChange={e => {
                     const opts = Array.from(e.target.selectedOptions, option => option.value);
                     setRegInterested(opts);
