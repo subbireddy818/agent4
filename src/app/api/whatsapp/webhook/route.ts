@@ -303,98 +303,97 @@ export async function POST(req: NextRequest) {
       .eq("phone", formattedPhone)
       .single();
 
-    if (!profile) {
-      // Check if they want to register
-      if (commandLower.startsWith("register") || commandLower.includes("register")) {
-        const matchWithAll = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*?)\s+location\s+(.*?)\s+interested in\s+(.*)/i);
-        const matchWithPhone = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*)/i);
-        const matchWithoutPhone = commandText.match(/register\s+(.*?)\s+agency\s+(.*)/i);
-        
-        const match = matchWithAll || matchWithPhone || matchWithoutPhone;
+    // Handle Registration Commands
+    if (commandLower.startsWith("register") || commandLower.includes("register")) {
+      const matchWithAll = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*?)\s+location\s+(.*?)\s+interested in\s+(.*)/i);
+      const matchWithPhone = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*)/i);
+      const matchWithoutPhone = commandText.match(/register\s+(.*?)\s+agency\s+(.*)/i);
+      
+      const match = matchWithAll || matchWithPhone || matchWithoutPhone;
 
-        if (match) {
-          let regName = match[1].trim();
-          let regPhone = matchWithAll || matchWithPhone ? match[2].trim() : formattedPhone;
-          let regAgency = matchWithAll ? match[3].trim() : matchWithPhone ? match[3].trim() : match[2].trim();
-          let regLocation = matchWithAll ? match[4].trim() : "";
-          let regInterested = matchWithAll ? match[5].trim() : "";
+      if (match) {
+        let regName = match[1].trim();
+        let regPhone = matchWithAll || matchWithPhone ? match[2].trim() : formattedPhone;
+        let regAgency = matchWithAll ? match[3].trim() : matchWithPhone ? match[3].trim() : match[2].trim();
+        let regLocation = matchWithAll ? match[4].trim() : "";
+        let regInterested = matchWithAll ? match[5].trim() : "";
 
-          // Strip square brackets if the user typed them literally
-          if (regName.startsWith("[") && regName.endsWith("]")) {
-            regName = regName.slice(1, -1).trim();
-          }
-          if (regAgency.startsWith("[") && regAgency.endsWith("]")) {
-            regAgency = regAgency.slice(1, -1).trim();
-          }
-          if (regPhone.startsWith("[") && regPhone.endsWith("]")) {
-            regPhone = regPhone.slice(1, -1).trim();
-          }
-          if (regLocation.startsWith("[") && regLocation.endsWith("]")) {
-            regLocation = regLocation.slice(1, -1).trim();
-          }
-          if (regInterested.startsWith("[") && regInterested.endsWith("]")) {
-            regInterested = regInterested.slice(1, -1).trim();
-          }
+        // Strip square brackets if the user typed them literally
+        if (regName.startsWith("[") && regName.endsWith("]")) regName = regName.slice(1, -1).trim();
+        if (regAgency.startsWith("[") && regAgency.endsWith("]")) regAgency = regAgency.slice(1, -1).trim();
+        if (regPhone.startsWith("[") && regPhone.endsWith("]")) regPhone = regPhone.slice(1, -1).trim();
+        if (regLocation.startsWith("[") && regLocation.endsWith("]")) regLocation = regLocation.slice(1, -1).trim();
+        if (regInterested.startsWith("[") && regInterested.endsWith("]")) regInterested = regInterested.slice(1, -1).trim();
 
-          let interestedArr: string[] = [];
-          if (regInterested) {
-             interestedArr = regInterested.split(",").map(i => i.trim());
-          }
+        let interestedArr: string[] = [];
+        if (regInterested) {
+           interestedArr = regInterested.split(",").map(i => i.trim());
+        }
 
-          // Format provided phone number
-          const cleanInputPhone = regPhone.replace(/\D/g, "");
-          const finalPhoneForDb = cleanInputPhone.length >= 10 
-            ? `+91 ${cleanInputPhone.slice(-10).slice(0, 5)} ${cleanInputPhone.slice(-10).slice(5)}` 
-            : formattedPhone;
+        const cleanInputPhone = regPhone.replace(/\D/g, "");
+        const finalPhoneForDb = cleanInputPhone.length >= 10 
+          ? `+91 ${cleanInputPhone.slice(-10).slice(0, 5)} ${cleanInputPhone.slice(-10).slice(5)}` 
+          : formattedPhone;
 
-          const generatedId = `CP-${Math.floor(1000 + Math.random() * 9000)}`;
+        let dbError = null;
+        let generatedId = profile?.cp_id || `CP-${Math.floor(1000 + Math.random() * 9000)}`;
 
-          const { data: newProfile, error } = await supabase
+        if (profile) {
+          // UPDATE existing profile
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              phone: finalPhoneForDb,
+              name: regName,
+              agency_name: regAgency,
+              location: regLocation,
+              interested_properties: interestedArr
+            })
+            .eq("id", profile.id);
+          dbError = error;
+        } else {
+          // INSERT new profile
+          const { error } = await supabase
             .from("profiles")
             .insert([{
               phone: finalPhoneForDb,
               name: regName,
               agency_name: regAgency,
               role: "agent",
-              status: "pending", // Now set to pending so Admin can approve
+              status: "pending",
               cp_id: generatedId,
               points: 500,
               referrals_count: 0,
               location: regLocation,
               interested_properties: interestedArr
-            }])
-            .select()
-            .single();
-
-          if (error) {
-            console.error("Failed to register agent via WhatsApp:", error);
-            const replyErr = `🤖 Bot: ❌ Failed to register: ${error.message}`;
-            await sendOutboundReply(replyErr);
-            return NextResponse.json({ status: "error", reply: replyErr });
-          } else {
-            const locText = regLocation ? `\n📍 Location: *${regLocation}*` : "";
-            const intText = regInterested ? `\n🏡 Interested: *${regInterested}*` : "";
-            const replyOk = `🎉 *Registration Successful!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*${locText}${intText}\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
-            await sendOutboundReply(replyOk);
-            return NextResponse.json({ status: "success", reply: replyOk });
-          }
-        } else {
-          const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Agency Name] location [Your City] interested in [Property Types]"_\n\n(Example: _"aa Register Amit Sharma phone 9876543210 agency Sunrise Realty location Hyderabad interested in Villa, Plot"_ )`;
-          await sendOutboundReply(replyFormat);
-          return NextResponse.json({ status: "success", reply: replyFormat });
+            }]);
+          dbError = error;
         }
-      }
 
+        if (dbError) {
+          console.error("Failed to register agent via WhatsApp:", dbError);
+          const replyErr = `🤖 Bot: ❌ Failed to register/update: ${dbError.message}`;
+          await sendOutboundReply(replyErr);
+          return NextResponse.json({ status: "error", reply: replyErr });
+        } else {
+          const locText = regLocation ? `\n📍 Location: *${regLocation}*` : "";
+          const intText = regInterested ? `\n🏡 Interested: *${regInterested}*` : "";
+          const replyOk = `🎉 *Registration ${profile ? "Updated" : "Successful"}!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*${locText}${intText}\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
+          await sendOutboundReply(replyOk);
+          return NextResponse.json({ status: "success", reply: replyOk });
+        }
+      } else {
+        const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Agency Name] location [Your City] interested in [Property Types]"_`;
+        await sendOutboundReply(replyFormat);
+        return NextResponse.json({ status: "success", reply: replyFormat });
+      }
+    }
+
+    if (!profile) {
       // If not a registration command, ask them to register
       const replyRegPrompt = `🤖 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Your Agency Name]"_`;
       await sendOutboundReply(replyRegPrompt);
       return NextResponse.json({ status: "success", reply: replyRegPrompt });
-    }
-
-    if (commandLower.startsWith("register") || commandLower.includes("register")) {
-      const replyAlready = `🤖 Bot: You are already registered!\n\nYour account status is: *${profile.status}*.\n\n⚠️ If your account is pending, please reply with your *RERA Document, Aadhar, and PAN* to get verified.`;
-      await sendOutboundReply(replyAlready);
-      return NextResponse.json({ status: "success", reply: replyAlready });
     }
 
     if (commandLower === "help" || commandLower === "commands" || commandLower === "hi" || commandLower === "hello" || commandLower === "menu") {
