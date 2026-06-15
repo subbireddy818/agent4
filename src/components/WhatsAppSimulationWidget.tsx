@@ -15,8 +15,8 @@ export default function WhatsAppSimulationWidget() {
   const [regName, setRegName] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regAgency, setRegAgency] = useState("");
-  const [regLocation, setRegLocation] = useState("");
-  const [regInterested, setRegInterested] = useState("");
+  const [regLocation, setRegLocation] = useState<string[]>([]);
+  const [regInterested, setRegInterested] = useState<string[]>([]);
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -203,12 +203,19 @@ export default function WhatsAppSimulationWidget() {
                   <input type="text" placeholder="Full Name" value={regName} onChange={e => setRegName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   <input type="text" placeholder="Phone Number" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   <input type="text" placeholder="Agency Name" value={regAgency} onChange={e => setRegAgency(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
-                  <select value={regLocation} onChange={e => setRegLocation(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white">
-                    <option value="" disabled>Select Area in Hyderabad</option>
+                  <p className="text-[10px] text-slate-500 font-medium mb-1">Hold Ctrl/Cmd to select multiple</p>
+                  <select multiple value={regLocation} onChange={e => {
+                    const opts = Array.from(e.target.selectedOptions, option => option.value);
+                    setRegLocation(opts);
+                  }} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white h-24">
+                    <option value="" disabled>Select Areas in Hyderabad</option>
                     {HYDERABAD_LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                   </select>
-                  <select value={regInterested} onChange={e => setRegInterested(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white">
-                    <option value="" disabled>Interested In (Property Type)</option>
+                  <select multiple value={regInterested} onChange={e => {
+                    const opts = Array.from(e.target.selectedOptions, option => option.value);
+                    setRegInterested(opts);
+                  }} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white h-20">
+                    <option value="" disabled>Interested In (Property Types)</option>
                     <option value="Apartment">Apartment</option>
                     <option value="Villa">Villa</option>
                     <option value="Plot">Plot</option>
@@ -217,12 +224,12 @@ export default function WhatsAppSimulationWidget() {
                   <div className="flex space-x-2 pt-1.5">
                     <button 
                       onClick={() => {
-                        if (!regName || !regPhone || !regAgency || !regLocation || !regInterested) {
+                        if (!regName || !regPhone || !regAgency || regLocation.length === 0 || regInterested.length === 0) {
                           alert("Please fill all fields");
                           return;
                         }
                         setShowRegForm(false);
-                        const cmd = `aa Register ${regName} phone ${regPhone} agency ${regAgency} location ${regLocation} interested in ${regInterested}`;
+                        const cmd = `aa Register ${regName} phone ${regPhone} agency ${regAgency} location ${regLocation.join(", ")} interested in ${regInterested.join(", ")}`;
                         setChatInput(cmd);
                         setTimeout(() => document.getElementById("chatbot-submit-btn")?.click(), 50);
                       }}
