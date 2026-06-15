@@ -18,6 +18,7 @@ export default function WhatsAppSimulationWidget() {
   const [regLocation, setRegLocation] = useState<string[]>([]);
   const [regInterested, setRegInterested] = useState<string[]>([]);
   const [isLocDropdownOpen, setIsLocDropdownOpen] = useState(false);
+  const [isPropDropdownOpen, setIsPropDropdownOpen] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -248,17 +249,36 @@ export default function WhatsAppSimulationWidget() {
                       </div>
                     )}
                   </div>
-                  <div className="w-full">
+                  <div className="relative w-full">
                     <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Property Types (Interested In)</label>
-                    <select multiple value={regInterested} onChange={e => {
-                      const opts = Array.from(e.target.selectedOptions, option => option.value);
-                      setRegInterested(opts);
-                    }} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white h-20">
-                      <option value="Apartment">Apartment</option>
-                      <option value="Villa">Villa</option>
-                      <option value="Plot">Plot</option>
-                      <option value="Commercial">Commercial</option>
-                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setIsPropDropdownOpen(!isPropDropdownOpen)}
+                      className="w-full border border-slate-200 rounded-md p-1.5 text-xs text-left bg-white outline-none focus:border-[#25d366]"
+                    >
+                      {regInterested.length > 0 ? (regInterested.length > 2 ? `${regInterested.length} selected` : regInterested.join(", ")) : "Select Property Types"}
+                    </button>
+                    {isPropDropdownOpen && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-32 overflow-y-auto">
+                        {["Apartment", "Villa", "Plot", "Commercial"].map(prop => (
+                          <label key={prop} className="flex items-center px-2 py-1.5 text-[11px] hover:bg-slate-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="mr-2"
+                              checked={regInterested.includes(prop)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setRegInterested([...regInterested, prop]);
+                                } else {
+                                  setRegInterested(regInterested.filter(p => p !== prop));
+                                }
+                              }}
+                            />
+                            {prop}
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex space-x-2 pt-1.5">
                     <button 
