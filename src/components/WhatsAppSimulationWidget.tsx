@@ -194,7 +194,7 @@ export default function WhatsAppSimulationWidget() {
           <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
             {[
               { label: "ℹ️ Help", cmd: "help", autoSubmit: true },
-              { label: "🆕 Register", cmd: "aa Register [Your Name] phone [Your Phone Number] agency [Your Agency Name]", autoSubmit: false },
+              { label: "🆕 Register", cmd: "aa Register [Your Name] phone [Your Phone Number] agency [Your Agency Name] location [Area] interested in [Property Types]", autoSubmit: false },
               { label: "🆕 Add Lead", cmd: "add lead [Name] phone [Number] location [Area] budget [Price]", autoSubmit: false },
               { label: "🔍 Search", cmd: "Search [Location/BHK/Type]", autoSubmit: false },
               { label: "⏰ Set Reminder", cmd: "Remind me to call [Name] time [Date/Time]", autoSubmit: false },

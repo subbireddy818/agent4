@@ -306,16 +306,18 @@ export async function POST(req: NextRequest) {
     if (!profile) {
       // Check if they want to register
       if (commandLower.startsWith("register") || commandLower.includes("register")) {
-        // Try parsing with phone number first, then fallback to without phone
+        const matchWithAll = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*?)\s+location\s+(.*?)\s+interested in\s+(.*)/i);
         const matchWithPhone = commandText.match(/register\s+(.*?)\s+phone\s+(.*?)\s+agency\s+(.*)/i);
         const matchWithoutPhone = commandText.match(/register\s+(.*?)\s+agency\s+(.*)/i);
         
-        const match = matchWithPhone || matchWithoutPhone;
+        const match = matchWithAll || matchWithPhone || matchWithoutPhone;
 
         if (match) {
           let regName = match[1].trim();
-          let regPhone = matchWithPhone ? match[2].trim() : formattedPhone;
-          let regAgency = matchWithPhone ? match[3].trim() : match[2].trim();
+          let regPhone = matchWithAll || matchWithPhone ? match[2].trim() : formattedPhone;
+          let regAgency = matchWithAll ? match[3].trim() : matchWithPhone ? match[3].trim() : match[2].trim();
+          let regLocation = matchWithAll ? match[4].trim() : "";
+          let regInterested = matchWithAll ? match[5].trim() : "";
 
           // Strip square brackets if the user typed them literally
           if (regName.startsWith("[") && regName.endsWith("]")) {
@@ -326,6 +328,17 @@ export async function POST(req: NextRequest) {
           }
           if (regPhone.startsWith("[") && regPhone.endsWith("]")) {
             regPhone = regPhone.slice(1, -1).trim();
+          }
+          if (regLocation.startsWith("[") && regLocation.endsWith("]")) {
+            regLocation = regLocation.slice(1, -1).trim();
+          }
+          if (regInterested.startsWith("[") && regInterested.endsWith("]")) {
+            regInterested = regInterested.slice(1, -1).trim();
+          }
+
+          let interestedArr: string[] = [];
+          if (regInterested) {
+             interestedArr = regInterested.split(",").map(i => i.trim());
           }
 
           // Format provided phone number
@@ -346,7 +359,9 @@ export async function POST(req: NextRequest) {
               status: "pending", // Now set to pending so Admin can approve
               cp_id: generatedId,
               points: 500,
-              referrals_count: 0
+              referrals_count: 0,
+              location: regLocation,
+              interested_properties: interestedArr
             }])
             .select()
             .single();
@@ -357,12 +372,14 @@ export async function POST(req: NextRequest) {
             await sendOutboundReply(replyErr);
             return NextResponse.json({ status: "error", reply: replyErr });
           } else {
-            const replyOk = `🎉 *Registration Successful!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
+            const locText = regLocation ? `\n📍 Location: *${regLocation}*` : "";
+            const intText = regInterested ? `\n🏡 Interested: *${regInterested}*` : "";
+            const replyOk = `🎉 *Registration Successful!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*${locText}${intText}\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
             await sendOutboundReply(replyOk);
             return NextResponse.json({ status: "success", reply: replyOk });
           }
         } else {
-          const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Agency Name]"_\n\n(Example: _"aa Register Amit Sharma phone 9876543210 agency Sunrise Realty"_ )`;
+          const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Agency Name] location [Your City] interested in [Property Types]"_\n\n(Example: _"aa Register Amit Sharma phone 9876543210 agency Sunrise Realty location Hyderabad interested in Villa, Plot"_ )`;
           await sendOutboundReply(replyFormat);
           return NextResponse.json({ status: "success", reply: replyFormat });
         }
