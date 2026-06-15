@@ -201,10 +201,24 @@ export default function WhatsAppSimulationWidget() {
               <div className="flex flex-col items-start mt-2">
                 <div className="max-w-[95%] bg-white text-slate-800 rounded-lg rounded-tl-none border border-slate-200 p-3 shadow-sm w-full space-y-2.5">
                   <div className="font-bold text-xs text-[#25d366] pb-1 border-b border-slate-100">Agent Registration</div>
-                  <input type="text" placeholder="Full Name" value={regName} onChange={e => setRegName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
-                  <input type="text" placeholder="Phone Number" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
-                  <input type="text" placeholder="Agency Name" value={regAgency} onChange={e => setRegAgency(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
-                  <div className="relative">
+                  
+                  <div className="w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Full Name</label>
+                    <input type="text" placeholder="e.g. Amit Sharma" value={regName} onChange={e => setRegName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  </div>
+                  
+                  <div className="w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Phone Number</label>
+                    <input type="text" placeholder="e.g. 9876543210" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  </div>
+                  
+                  <div className="w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Agency Name</label>
+                    <input type="text" placeholder="e.g. Sunrise Realty" value={regAgency} onChange={e => setRegAgency(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  </div>
+
+                  <div className="relative w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Location(s)</label>
                     <button
                       type="button"
                       onClick={() => setIsLocDropdownOpen(!isLocDropdownOpen)}
@@ -234,16 +248,18 @@ export default function WhatsAppSimulationWidget() {
                       </div>
                     )}
                   </div>
-                  <select multiple value={regInterested} onChange={e => {
-                    const opts = Array.from(e.target.selectedOptions, option => option.value);
-                    setRegInterested(opts);
-                  }} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white h-20">
-                    <option value="" disabled>Interested In (Property Types)</option>
-                    <option value="Apartment">Apartment</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Plot">Plot</option>
-                    <option value="Commercial">Commercial</option>
-                  </select>
+                  <div className="w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Property Types (Interested In)</label>
+                    <select multiple value={regInterested} onChange={e => {
+                      const opts = Array.from(e.target.selectedOptions, option => option.value);
+                      setRegInterested(opts);
+                    }} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366] bg-white h-20">
+                      <option value="Apartment">Apartment</option>
+                      <option value="Villa">Villa</option>
+                      <option value="Plot">Plot</option>
+                      <option value="Commercial">Commercial</option>
+                    </select>
+                  </div>
                   <div className="flex space-x-2 pt-1.5">
                     <button 
                       onClick={() => {
