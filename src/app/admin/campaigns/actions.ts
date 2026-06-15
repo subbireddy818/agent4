@@ -39,14 +39,16 @@ export async function getCampaignDetailsAction(
     const endDate   = new Date(createdMs + 1000 * 60 * 240).toISOString(); // 4h after
 
     // Fetch all outbound messages in that window that have an agent_id attached
-    // We match by agent_id (reliable) instead of content (unreliable, format varies)
+    // We match by agent_id and also ensure the message content contains the campaign name 
+    // to prevent concurrent campaigns from bleeding into each other's metrics
     const { data: messages, error: msgsError } = await supabaseAdmin
       .from("whatsapp_messages")
       .select("agent_id, phone")
       .eq("direction", "outbound")
       .gte("created_at", startDate)
       .lte("created_at", endDate)
-      .not("agent_id", "is", null);
+      .not("agent_id", "is", null)
+      .ilike("content", `%${campaignName}%`);
 
     if (msgsError) throw msgsError;
 
