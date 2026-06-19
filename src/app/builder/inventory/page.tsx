@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Building, Loader2, CheckCircle2, X, FileSpreadsheet, Pencil, Sparkles, Upload } from "lucide-react";
+import { Plus, Building, Loader2, CheckCircle2, X, FileSpreadsheet, Pencil, Sparkles, Upload, Search, Filter } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
   getInventoryUnits,
@@ -62,6 +62,11 @@ export default function BuilderInventoryPage() {
   });
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  // Search and Filter State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [bhkFilter, setBhkFilter] = useState("all");
 
   useEffect(() => {
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
@@ -410,6 +415,53 @@ export default function BuilderInventoryPage() {
                 </button>
               </div>
             </div>
+
+            {/* Filters and Search */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mt-4">
+              <div className="flex-1 w-full relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by unit name or tower..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+              <div className="flex items-center space-x-3 w-full md:w-auto">
+                <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-xl">
+                  <Filter className="w-3.5 h-3.5 text-slate-400" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="available">Available</option>
+                    <option value="booked">Booked</option>
+                    <option value="sold">Sold</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="hold">Hold</option>
+                  </select>
+                </div>
+                <div className="flex items-center space-x-2 bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-xl">
+                  <select
+                    value={bhkFilter}
+                    onChange={(e) => setBhkFilter(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                  >
+                    <option value="all">All BHK Types</option>
+                    <option value="1 BHK">1 BHK</option>
+                    <option value="2 BHK">2 BHK</option>
+                    <option value="3 BHK">3 BHK</option>
+                    <option value="4 BHK">4 BHK</option>
+                    <option value="5+ BHK">5+ BHK</option>
+                    <option value="Plot">Plot</option>
+                    <option value="Villa">Villa</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Units Table */}
@@ -437,7 +489,17 @@ export default function BuilderInventoryPage() {
                       </td>
                     </tr>
                   )}
-                  {units.filter(u => u.project_id === selectedProjectId).map((unit) => (
+                  {units
+                    .filter((u) => u.project_id === selectedProjectId)
+                    .filter((u) => {
+                      const matchesSearch = 
+                        (u.unit_name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        (u.tower || "").toLowerCase().includes(searchQuery.toLowerCase());
+                      const matchesStatus = statusFilter === "all" || u.status === statusFilter;
+                      const matchesBhk = bhkFilter === "all" || u.bhk_type === bhkFilter;
+                      return matchesSearch && matchesStatus && matchesBhk;
+                    })
+                    .map((unit) => (
                     <tr key={unit.id} className="hover:bg-slate-50/50 transition">
                       <td className="px-4 py-3 font-bold text-slate-900">{unit.unit_name}</td>
                       <td className="px-4 py-3">{unit.bhk_type || "—"}</td>

@@ -142,6 +142,30 @@ export async function POST(req: NextRequest) {
       ""
     ).toString().trim();
 
+    // Detect message type and media URLs
+    const msgType = (
+      payload.whatsapp?.type ||
+      payload.data?.message?.type ||
+      payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type ||
+      payload.message?.type ||
+      payload.type ||
+      "text"
+    );
+
+    let mediaUrl = "";
+    let mediaFileName = "";
+    if (msgType === "image" || msgType === "document") {
+      const mediaObj = 
+        payload.whatsapp?.image || payload.whatsapp?.document ||
+        payload.data?.message?.image || payload.data?.message?.document ||
+        payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.image ||
+        payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.document ||
+        payload.message?.image || payload.message?.document;
+        
+      mediaUrl = mediaObj?.link || mediaObj?.url || mediaObj?.id || "media_uploaded";
+      mediaFileName = mediaObj?.filename || mediaObj?.name || `${msgType}_file`;
+    }
+
     // Clean surrounding single/double quotes
     if ((textBody.startsWith('"') && textBody.endsWith('"')) || (textBody.startsWith("'") && textBody.endsWith("'"))) {
       textBody = textBody.slice(1, -1).trim();
@@ -161,17 +185,22 @@ export async function POST(req: NextRequest) {
       ""
     ).toString().trim();
 
-    if (!textBody || !fromPhoneRaw) {
-      console.log("Ignored payload: Missing message body or sender phone number.");
+    if (!fromPhoneRaw) {
+      console.log("Ignored payload: Missing sender phone number.");
+      return NextResponse.json({ status: "ignored", message: "Missing phone" });
+    }
+
+    if (!textBody && msgType === "text") {
+      console.log("Ignored payload: Missing message body.");
       await logWhatsappMessage({
         direction: "inbound",
         phone: fromPhoneRaw || null,
         message_type: "system",
         content: textBody || null,
-        error_message: "missing body or phone",
+        error_message: "missing body",
         raw_payload: payload,
       });
-      return NextResponse.json({ status: "ignored", message: "Missing body or phone" });
+      return NextResponse.json({ status: "ignored", message: "Missing body" });
     }
 
     // Detect which BSP/source this payload is from. Used for audit logging.
@@ -210,8 +239,8 @@ export async function POST(req: NextRequest) {
     const isFromSimulator = payload.entry?.[0]?.id === "sandbox-entry" || payload.from === "simulator" || payload.fromPhone === "simulator";
     const hasAaPrefix = lowerText.startsWith("aa ") || lowerText === "aa";
 
-    // If it doesn't match our routing signature, ignore it and let GallaBox's default flows handle it
-    if (!hasAaPrefix && !isFromSimulator) {
+    // If it doesn't match our routing signature and is not a media upload, ignore it
+    if (!hasAaPrefix && !isFromSimulator && msgType === "text") {
       console.log("Ignored payload: Does not start with 'aa' and not from simulator.");
       return NextResponse.json({ status: "ignored", message: "Not intended for agentsapp bot" });
     }
@@ -301,7 +330,36 @@ export async function POST(req: NextRequest) {
       .from("profiles")
       .select("*")
       .eq("phone", formattedPhone)
-      .single();
+      .maybeSingle();
+
+    // Handle Media Uploads for KYC Verification
+    if (msgType === "image" || msgType === "document") {
+      if (!profile) {
+        await sendOutboundReply(`🤖 Bot: We received a file, but your phone number is not registered. Please register first by typing *aa register [Name]*`);
+        return NextResponse.json({ status: "success", reply: "Unregistered user uploaded file" });
+      }
+
+      // Log the document to verification_docs table
+      await supabase.from("verification_docs").insert([{
+        agent_id: profile.id,
+        doc_type: msgType,
+        file_url: mediaUrl,
+        file_name: mediaFileName,
+        status: "pending"
+      }]);
+
+      // Update agent status if they are in pending or docs_required state
+      if (profile.status === "pending" || profile.status === "docs_required" || profile.status === "rejected") {
+        await supabase.from("profiles").update({ status: "docs_uploaded" }).eq("id", profile.id);
+        const replyMsg = `🤖 Bot: 📄 *File Received!*\nThank you for uploading your document. Our admin team will review it shortly. Your status is now *Docs Uploaded*.`;
+        await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
+        return NextResponse.json({ status: "success", reply: replyMsg });
+      }
+
+      const replyMsg = `🤖 Bot: 📄 *File Received!*\nWe've securely saved your document to your profile.`;
+      await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
+      return NextResponse.json({ status: "success", reply: replyMsg });
+    }
 
     // Handle Registration Commands
     if (commandLower.startsWith("register") || commandLower.includes("register")) {
@@ -336,7 +394,7 @@ export async function POST(req: NextRequest) {
           : formattedPhone;
 
         let dbError = null;
-        let generatedId = profile?.cp_id || `CP-${Math.floor(1000 + Math.random() * 9000)}`;
+        let generatedId = profile?.cp_id || null;
 
         if (profile) {
           // UPDATE existing profile
@@ -361,7 +419,7 @@ export async function POST(req: NextRequest) {
               agency_name: regAgency,
               role: "agent",
               status: "pending",
-              cp_id: generatedId,
+              cp_id: null,
               points: 500,
               referrals_count: 0,
               location: regLocation,
@@ -378,7 +436,7 @@ export async function POST(req: NextRequest) {
         } else {
           const locText = regLocation ? `\n📍 Location: *${regLocation}*` : "";
           const intText = regInterested ? `\n🏡 Interested: *${regInterested}*` : "";
-          const replyOk = `🎉 *Registration ${profile ? "Updated" : "Successful"}!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*${locText}${intText}\n🆔 CP ID: *${generatedId}*\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
+          const replyOk = `🎉 *Registration ${profile ? "Updated" : "Successful"}!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*${locText}${intText}\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
           await sendOutboundReply(replyOk);
           return NextResponse.json({ status: "success", reply: replyOk });
         }
@@ -471,51 +529,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "success", reply: helpMsg });
     }
 
+    // BLOCK unapproved agents from executing normal commands
+    if (profile.role === "agent" && profile.status !== "approved") {
+      let statusMsg = "";
+      if (profile.status === "rejected") {
+        statusMsg = `❌ *Account Rejected*\nYour registration was rejected.\nReason: ${profile.rejection_reason || "Admin decision."}\nPlease contact support.`;
+      } else {
+        statusMsg = `⏳ *Approval Pending*\nYour account is currently in *${profile.status}* status. You cannot perform this action until an admin approves your profile.`;
+      }
+      await sendOutboundReply(statusMsg);
+      return NextResponse.json({ status: "success", reply: statusMsg });
+    }
+
     // 2. ADD LEAD INTENT (Support: "Add Ravi looking for 3BHK", etc.)
     if (commandLower.startsWith("add") || commandLower.includes("add lead")) {
       let leadName = "New Lead";
-      let leadPhone = "9876500000";
-      let leadBudget = "₹1.80 Cr";
-      let leadLoc = "Kokapet";
-      let requirement = "3 BHK";
+      let leadPhone = "";
+      let leadBudget = "";
+      let leadLoc = "";
+      let requirement = "";
 
       // Match "Add [Name] looking for [Req]" or "Add [Name] wanting [Req]"
-      const addLookingMatch = commandText.match(/add\s+([a-zA-Z\s]+)\s+looking\s+for\s+([0-9a-zA-Z\s_]+)/i);
+      const addLookingMatch = commandText.match(/add\s+([a-zA-Z\s\[\]]+)\s+looking\s+for\s+([0-9a-zA-Z\s_\[\]]+)/i);
       if (addLookingMatch) {
         leadName = addLookingMatch[1].trim();
         requirement = addLookingMatch[2].trim();
       } else {
         // Fallback to original matching
-        const nameMatch = commandText.match(/add\s+(?:lead\s+)?([a-zA-Z\s]+)/i);
+        const nameMatch = commandText.match(/add\s+(?:lead\s+)?([a-zA-Z\s\[\]]+)/i);
         leadName = nameMatch?.[1]?.replace(/(phone|budget|location|looking|wanting).*/i, "")?.trim() || "New Lead";
       }
 
-      const phoneMatch = commandText.match(/phone\s+([\d\s]+)/i);
+      const phoneMatch = commandText.match(/phone\s+([\d\s\[\]]+)/i);
       if (phoneMatch) {
-        leadPhone = phoneMatch[1].replace(/\s+/g, "");
+        leadPhone = phoneMatch[1].replace(/[\s\[\]]/g, "");
       }
       
-      const budgetMatch = commandText.match(/budget\s+([^\s]+)/i);
+      const budgetMatch = commandText.match(/budget\s+([^\s\[\]]+)/i);
       if (budgetMatch) {
         leadBudget = budgetMatch[1];
       }
 
-      const locMatch = commandText.match(/location\s+([a-zA-Z\s]+)/i);
+      const locMatch = commandText.match(/location\s+([a-zA-Z\s\[\]]+)/i);
       if (locMatch) {
         leadLoc = locMatch[1].trim();
       }
+
+      // Strip square brackets
+      if (leadName.startsWith("[") && leadName.endsWith("]")) leadName = leadName.slice(1, -1).trim();
+      if (requirement.startsWith("[") && requirement.endsWith("]")) requirement = requirement.slice(1, -1).trim();
+      if (leadLoc.startsWith("[") && leadLoc.endsWith("]")) leadLoc = leadLoc.slice(1, -1).trim();
 
       // Insert lead into Supabase
       const { data: newLead, error } = await supabase
         .from("leads")
         .insert([{
           agent_id: profile.id,
-          name: leadName,
-          phone: leadPhone,
+          name: leadName || "New Lead",
+          phone: leadPhone || null,
           status: "new",
-          requirement: requirement,
-          location: leadLoc,
-          budget: leadBudget,
+          requirement: requirement || null,
+          location: leadLoc || null,
+          budget: leadBudget || null,
           details: {
             propertyType: "Apartment",
             aiScore: 85,
@@ -532,7 +607,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ status: "error", reply: replyErr });
       } else {
         console.log("Successfully logged lead via WhatsApp bot:", newLead);
-        const replyOk = `🤖 Bot: ✅ Lead Added!\n👤 Name: *${leadName}*\n📱 Phone: ${leadPhone}\n📍 Location: ${leadLoc}\n🏠 Req: *${requirement}*\n💰 Budget: ${leadBudget}\n\n(This was inserted in your live Supabase leads table. Close chat to see it!)`;
+        let replyOk = `🤖 Bot: ✅ Lead Added!\n👤 Name: *${leadName}*`;
+        if (leadPhone) replyOk += `\n📱 Phone: ${leadPhone}`;
+        if (leadLoc) replyOk += `\n📍 Location: ${leadLoc}`;
+        if (requirement) replyOk += `\n🏠 Req: *${requirement}*`;
+        if (leadBudget) replyOk += `\n💰 Budget: ${leadBudget}`;
+        replyOk += `\n\n(This was inserted in your live Supabase leads table. Close chat to see it!)`;
+        
         await sendOutboundReply(replyOk);
         return NextResponse.json({ status: "success", reply: replyOk });
       }
@@ -540,21 +621,30 @@ export async function POST(req: NextRequest) {
 
     // 3. SET REMINDER INTENT (Support: "Remind me tomorrow to call Ramesh", etc.)
     if (commandLower.startsWith("remind") || commandLower.includes("remind")) {
-      const match = commandText.match(/remind\s+(?:me\s+)?(?:to\s+)?([a-zA-Z0-9\s,.-]+)\s+time\s+(.*)/i);
-      
       let title = "WhatsApp Follow-up Task";
       let scheduledTime = "Tomorrow, 10:00 AM";
 
-      if (match) {
-        title = match[1].trim();
-        scheduledTime = match[2].trim();
+      // Remove "remind me to "
+      let content = commandText.replace(/^remind\s*(me\s*)?(to\s*)?/i, "").trim();
+      
+      // Look for time indicators at the end of the sentence
+      const timeRegex = /\b(at|on|by|time|tomorrow|today)\b\s*(.*)$/i;
+      const timeMatch = content.match(timeRegex);
+
+      if (timeMatch) {
+         scheduledTime = timeMatch[0].trim();
+         // If "tomorrow call ramesh", the time indicator is at the beginning.
+         // Let's just strip the matched time part from the title.
+         title = content.replace(timeRegex, "").trim();
       } else {
-        // Fallback for simple "Remind me tomorrow"
-        const titleMatch = commandText.match(/remind\s+me\s+(?:to\s+)?(.*)/i);
-        if (titleMatch) {
-          title = titleMatch[1].trim();
-        }
+         title = content;
       }
+
+      if (!title) title = "WhatsApp Follow-up Task";
+      
+      // Strip square brackets if any
+      if (title.startsWith("[") && title.endsWith("]")) title = title.slice(1, -1).trim();
+      if (scheduledTime.startsWith("[") && scheduledTime.endsWith("]")) scheduledTime = scheduledTime.slice(1, -1).trim();
 
       // Find if there is a matching lead to link
       const { data: matchingLeads } = await supabase
@@ -686,7 +776,14 @@ export async function POST(req: NextRequest) {
           lost: "❌"
         };
         const emoji = emojiMap[l.status] || "👤";
-        replyMsg += `${idx + 1}. ${emoji} *${l.name}* (${l.phone})\n   📍 Loc: ${l.location || "N/A"} | Req: ${l.requirement || "N/A"}\n   ⚡ Status: *${l.status.toUpperCase()}* | Budget: ${l.budget || "N/A"}\n\n`;
+        replyMsg += `${idx + 1}. ${emoji} *${l.name}* (${l.phone || "No phone"})`;
+        if (l.location || l.requirement) {
+          replyMsg += `\n   📍 Loc: ${l.location || "-"} | Req: ${l.requirement || "-"}`;
+        }
+        if (l.budget) {
+          replyMsg += `\n   💰 Budget: ${l.budget}`;
+        }
+        replyMsg += `\n   ⚡ Status: *${l.status.toUpperCase()}*\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
