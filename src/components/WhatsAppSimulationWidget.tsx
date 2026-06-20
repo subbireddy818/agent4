@@ -441,6 +441,10 @@ export default function WhatsAppSimulationWidget() {
                           alert("Name and Phone are required");
                           return;
                         }
+                        if (addLeadPhone.replace(/\D/g, "").length < 10) {
+                          alert("Please enter a valid 10-digit phone number");
+                          return;
+                        }
                         setShowAddLeadForm(false);
                         const cmd = `add lead ${addLeadName} phone ${addLeadPhone} location ${addLeadLocation || "Any"} budget ${addLeadBudget || "Any"}`;
                         setChatInput(cmd);
