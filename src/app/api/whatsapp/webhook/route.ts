@@ -455,7 +455,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ status: "success", reply: replyOk });
         }
       } else {
-        const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Agency Name] location [Your City] interested in [Property Types]"_`;
+        const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register Your Name phone 9999999999 agency Agency Name location Your City interested in Property Types"_`;
         await sendOutboundReply(replyFormat);
         return NextResponse.json({ status: "success", reply: replyFormat });
       }
@@ -463,7 +463,7 @@ export async function POST(req: NextRequest) {
 
     if (!profile) {
       // If not a registration command, ask them to register
-      const replyRegPrompt = `🤖 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register [Your Name] phone [Your Phone Number] agency [Your Agency Name]"_`;
+      const replyRegPrompt = `🤖 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register Your Name phone 9999999999 agency Your Agency Name"_`;
       await sendOutboundReply(replyRegPrompt);
       return NextResponse.json({ status: "success", reply: replyRegPrompt });
     }
@@ -514,10 +514,10 @@ export async function POST(req: NextRequest) {
           `👋 Welcome *${profile.name}* (${profile.agency_name || "Agent"})!\n` +
           `🆔 CP ID: *${profile.cp_id || "Pending"}*\n\n` +
           `📋 *Leads*\n` +
-          `1. _"aa Add [Name] looking for [BHK]"_ — add lead\n` +
+          `1. _"aa Add Name looking for BHK"_ — add lead\n` +
           `2. _"aa My leads"_ — view all your leads\n` +
-          `3. _"aa Search [Name]"_ — find a specific lead\n` +
-          `4. _"aa [Name] site visit"_ — update lead status\n\n` +
+          `3. _"aa Search Name"_ — find a specific lead\n` +
+          `4. _"aa Name site visit"_ — update lead status\n\n` +
           `⏰ *Reminders*\n` +
           `5. _"aa Remind me to call [Name] time [date]"_ — set reminder\n` +
           `6. _"aa my reminders"_ — view pending reminders\n\n` +
@@ -557,42 +557,28 @@ export async function POST(req: NextRequest) {
 
     // 2. ADD LEAD INTENT (Support: "Add Ravi looking for 3BHK", etc.)
     if (commandLower.startsWith("add") || commandLower.includes("add lead")) {
-      let leadName = "New Lead";
-      let leadPhone = "";
-      let leadBudget = "";
-      let leadLoc = "";
-      let requirement = "";
+      // Clean up brackets if user still types them
+      const cleanCommand = commandText.replace(/\[|\]/g, " ");
 
-      // Match "Add [Name] looking for [Req]" or "Add [Name] wanting [Req]"
-      const addLookingMatch = commandText.match(/add\s+([a-zA-Z\s\[\]]+)\s+looking\s+for\s+([0-9a-zA-Z\s_\[\]]+)/i);
-      if (addLookingMatch) {
-        leadName = addLookingMatch[1].trim();
-        requirement = addLookingMatch[2].trim();
-      } else {
-        // Fallback to original matching
-        const nameMatch = commandText.match(/add\s+(?:lead\s+)?([a-zA-Z\s\[\]]+)/i);
-        leadName = nameMatch?.[1]?.replace(/(phone|budget|location|looking|wanting).*/i, "")?.trim() || "New Lead";
-      }
+      // Extract phone
+      const phoneMatch = cleanCommand.match(/phone\s+([\d\+\-\s]+)/i);
+      let leadPhone = phoneMatch ? phoneMatch[1].replace(/[\s\+\-]/g, "") : null;
 
-      const phoneMatch = commandText.match(/phone\s+([\d\s\[\]]+)/i);
-      if (phoneMatch) {
-        leadPhone = phoneMatch[1].replace(/[\s\[\]]/g, "");
-      }
-      
-      const budgetMatch = commandText.match(/budget\s+([^\s\[\]]+)/i);
-      if (budgetMatch) {
-        leadBudget = budgetMatch[1];
-      }
+      // Extract budget
+      const budgetMatch = cleanCommand.match(/budget\s+(.*?)(?=\s+(?:phone|location|looking|req|requirement)|$)/i);
+      let leadBudget = budgetMatch ? budgetMatch[1].trim() : null;
 
-      const locMatch = commandText.match(/location\s+([a-zA-Z\s\[\]]+)/i);
-      if (locMatch) {
-        leadLoc = locMatch[1].trim();
-      }
+      // Extract location
+      const locMatch = cleanCommand.match(/location\s+(.*?)(?=\s+(?:budget|phone|looking|req|requirement)|$)/i);
+      let leadLoc = locMatch ? locMatch[1].trim() : null;
 
-      // Strip square brackets
-      if (leadName.startsWith("[") && leadName.endsWith("]")) leadName = leadName.slice(1, -1).trim();
-      if (requirement.startsWith("[") && requirement.endsWith("]")) requirement = requirement.slice(1, -1).trim();
-      if (leadLoc.startsWith("[") && leadLoc.endsWith("]")) leadLoc = leadLoc.slice(1, -1).trim();
+      // Extract requirement
+      const reqMatch = cleanCommand.match(/(?:looking for|req|requirement)\s+(.*?)(?=\s+(?:budget|phone|location)|$)/i);
+      let requirement = reqMatch ? reqMatch[1].trim() : null;
+
+      // Extract name
+      const nameMatch = cleanCommand.match(/add\s+(?:lead\s+)?(.*?)(?=\s+(?:phone|budget|location|looking|req|requirement)|$)/i);
+      let leadName = nameMatch ? nameMatch[1].trim() : "New Lead";
 
       // Insert lead into Supabase
       const { data: newLead, error } = await supabase
@@ -774,7 +760,7 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       if (!leads || leads.length === 0) {
-        const replyEmpty = "🤖 Bot: You don't have any leads registered yet. Add one by typing:\n\"aa Add lead [Name] phone [No]\"";
+        const replyEmpty = "🤖 Bot: You don't have any leads registered yet. Add one by typing:\n\"aa Add lead Name phone 9999999999\"";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
