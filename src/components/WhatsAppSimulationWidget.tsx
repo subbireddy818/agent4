@@ -19,6 +19,7 @@ export default function WhatsAppSimulationWidget() {
   const [regInterested, setRegInterested] = useState<string[]>([]);
   const [isLocDropdownOpen, setIsLocDropdownOpen] = useState(false);
   const [isPropDropdownOpen, setIsPropDropdownOpen] = useState(false);
+  const [showDocsMenu, setShowDocsMenu] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -432,20 +433,47 @@ export default function WhatsAppSimulationWidget() {
           </div>
 
           {/* Chat Footer Input */}
-          <form onSubmit={handleSendChat} className="p-2 bg-[#f0f2f5] border-t border-slate-200 flex items-center space-x-2 shrink-0">
+          <form onSubmit={handleSendChat} className="p-2 bg-[#f0f2f5] border-t border-slate-200 flex items-center space-x-2 shrink-0 relative">
             <input 
               type="file" 
               className="hidden" 
               ref={fileInputRef} 
-              onChange={handleFileUpload} 
+              onChange={(e) => {
+                setShowDocsMenu(false);
+                handleFileUpload(e);
+              }}
               accept="image/*,.pdf,.doc,.docx"
             />
+            
+            {showDocsMenu && (
+              <div className="absolute bottom-12 left-2 bg-white border border-slate-200 rounded-lg shadow-xl w-40 overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowDocsMenu(false);
+                    setChatInput("my docs");
+                    setTimeout(() => document.getElementById("chatbot-submit-btn")?.click(), 50);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 border-b border-slate-100 font-medium"
+                >
+                  📄 View Documents
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                >
+                  📤 Upload File
+                </button>
+              </div>
+            )}
+
             <button 
               type="button" 
-              onClick={() => fileInputRef.current?.click()}
-              className="w-8 h-8 rounded-full bg-white text-slate-500 hover:text-slate-700 flex items-center justify-center text-lg shrink-0 shadow-sm transition"
+              onClick={() => setShowDocsMenu(!showDocsMenu)}
+              className="px-3 h-8 rounded-full bg-white text-slate-600 hover:text-slate-800 text-[11px] font-bold shrink-0 shadow-sm transition border border-slate-200"
             >
-              📎
+              Documents
             </button>
             <input 
               id="chatbot-input-field"
@@ -453,6 +481,7 @@ export default function WhatsAppSimulationWidget() {
               placeholder="e.g. add lead Ravi 3BHK"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
+              onClick={() => setShowDocsMenu(false)}
               className="flex-1 bg-white border border-slate-200 rounded-full py-2 px-3 text-[11px] text-slate-800 outline-none focus:border-[#25d366] transition shadow-inner"
             />
             <button 
