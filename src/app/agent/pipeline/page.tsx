@@ -183,10 +183,8 @@ export default function ClientPipeline() {
     }
   };
 
-  const handleMoveStage = async (id: string, currentStage: Client["stage"]) => {
-    const nextStageIndex = (stages.indexOf(currentStage) + 1) % stages.length;
-    const nextStage = stages[nextStageIndex];
-    const dbStatus = STAGE_MAP_UI_TO_DB[nextStage];
+  const handleMoveStageDirect = async (id: string, newStage: Client["stage"]) => {
+    const dbStatus = STAGE_MAP_UI_TO_DB[newStage];
     setLoading(true);
 
     try {
@@ -199,9 +197,17 @@ export default function ClientPipeline() {
       
       await loadLeads();
     } catch (err: any) {
-      alert("Error progression stage: " + err.message);
+      alert("Error moving stage: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStage: Client["stage"]) => {
+    e.preventDefault();
+    const clientId = e.dataTransfer.getData("clientId");
+    if (clientId) {
+      handleMoveStageDirect(clientId, newStage);
     }
   };
 
@@ -330,7 +336,12 @@ export default function ClientPipeline() {
             const stageClients = filteredClients.filter(c => c.stage === stage);
             
             return (
-              <div key={stage} className="w-72 bg-white rounded-2xl border border-slate-200 p-4 shrink-0 flex flex-col min-h-[500px]">
+              <div 
+                key={stage} 
+                className="w-72 bg-white rounded-2xl border border-slate-200 p-4 shrink-0 flex flex-col min-h-[500px]"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, stage)}
+              >
                 {/* Column title */}
                 <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2.5">
                   <div className="flex items-center space-x-2">
@@ -347,7 +358,9 @@ export default function ClientPipeline() {
                   {stageClients.map((client) => (
                     <div 
                       key={client.id}
-                      className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-[#25d366]/40 hover:bg-white transition flex flex-col justify-between group shadow-sm animate-in fade-in duration-200"
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("clientId", client.id)}
+                      className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-[#25d366]/40 hover:bg-white transition flex flex-col justify-between group shadow-sm animate-in fade-in duration-200 cursor-grab active:cursor-grabbing"
                     >
                       <div>
                         <div className="flex justify-between items-start">
@@ -413,13 +426,14 @@ export default function ClientPipeline() {
                             <MessageSquare className="w-3 h-3" />
                           </button>
                           
-                          <button 
-                            onClick={() => handleMoveStage(client.id, client.stage)}
-                            className="p-1 hover:bg-indigo-50 rounded hover:text-indigo-600 transition"
+                          <select 
+                            value={client.stage}
+                            onChange={(e) => handleMoveStageDirect(client.id, e.target.value as Client["stage"])}
+                            className="p-1 max-w-[80px] hover:bg-indigo-50 rounded hover:text-indigo-600 transition outline-none cursor-pointer text-[10px] bg-transparent"
                             title="Progress Stage"
                           >
-                            <ArrowRightLeft className="w-3 h-3" />
-                          </button>
+                            {stages.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
 
                           <button 
                             onClick={() => alert(`Sharing documents with ${client.name}...`)}
@@ -518,12 +532,13 @@ export default function ClientPipeline() {
                     >
                       <Share2 className="w-3 h-3 mr-1" /> Share Docs
                     </button>
-                    <button 
-                      onClick={() => handleMoveStage(client.id, client.stage)}
-                      className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-semibold transition"
+                    <select 
+                      value={client.stage}
+                      onChange={(e) => handleMoveStageDirect(client.id, e.target.value as Client["stage"])}
+                      className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-semibold transition cursor-pointer outline-none w-28 text-center"
                     >
-                      Move Stage
-                    </button>
+                      {stages.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                     <button 
                       onClick={() => alert(`Editing lead ${client.name}...`)}
                       className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold transition"
