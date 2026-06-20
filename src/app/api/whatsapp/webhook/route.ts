@@ -239,12 +239,6 @@ export async function POST(req: NextRequest) {
     const isFromSimulator = payload.entry?.[0]?.id === "sandbox-entry" || payload.from === "simulator" || payload.fromPhone === "simulator";
     const hasAaPrefix = lowerText.startsWith("aa ") || lowerText === "aa";
 
-    // If it doesn't match our routing signature and is not a media upload, ignore it
-    if (!hasAaPrefix && !isFromSimulator && msgType === "text") {
-      console.log("Ignored payload: Does not start with 'aa' and not from simulator.");
-      return NextResponse.json({ status: "ignored", message: "Not intended for agentsapp bot" });
-    }
-
     // Strip "aa" prefix to normalize command text for processing
     let commandText = textBody;
     if (lowerText.startsWith("aa ")) {
@@ -254,6 +248,15 @@ export async function POST(req: NextRequest) {
     }
 
     const commandLower = commandText.toLowerCase();
+
+    // Check if the message is a pure "yes" or "no" reply
+    const isYesOrNo = commandLower === "yes" || commandLower === "no";
+
+    // If it doesn't match our routing signature, isn't a yes/no reply, and is not from simulator, ignore it
+    if (!hasAaPrefix && !isFromSimulator && !isYesOrNo && msgType === "text") {
+      console.log("Ignored payload: Does not start with 'aa', isn't yes/no, and not from simulator.");
+      return NextResponse.json({ status: "ignored", message: "Not intended for agentsapp bot" });
+    }
 
     // formattedPhone is already defined above
 
@@ -373,6 +376,53 @@ export async function POST(req: NextRequest) {
       const replyMsg = `🤖 Bot: 📄 *File Received!*\nWe've securely saved your document to your "My Documents" vault.`;
       await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
       return NextResponse.json({ status: "success", reply: replyMsg });
+    }
+
+    // Handle Yes/No for Channel Partner Invitations
+    if (commandLower === "yes" || commandLower === "no") {
+      // Find pending invitations for this agent
+      const { data: invites, error: invitesErr } = await supabase
+        .from("channel_partners")
+        .select("builder_id, status")
+        .eq("agent_id", profile.id)
+        .eq("status", "invited");
+
+      if (!invitesErr && invites && invites.length > 0) {
+        // Just process the first pending invitation
+        const invite = invites[0];
+        
+        if (commandLower === "yes") {
+          await supabase
+            .from("channel_partners")
+            .update({ status: "connected" })
+            .eq("agent_id", profile.id)
+            .eq("builder_id", invite.builder_id);
+            
+          // Reward agent
+          await supabase
+            .from("profiles")
+            .update({ points: (profile.points || 0) + 100 })
+            .eq("id", profile.id);
+
+          const replyMsg = `🎉 *Awesome!*\n\nYou are now an official Channel Partner.\n\n💰 We have credited *100 bonus credits* to your account!`;
+          await sendOutboundReply(replyMsg);
+          return NextResponse.json({ status: "success", reply: replyMsg });
+        } else {
+          // They said no
+          await supabase
+            .from("channel_partners")
+            .update({ status: "rejected" })
+            .eq("agent_id", profile.id)
+            .eq("builder_id", invite.builder_id);
+            
+          const replyMsg = `🤖 *Understood.*\n\nYou have declined the Channel Partner invitation. Let us know if you change your mind in the future.`;
+          await sendOutboundReply(replyMsg);
+          return NextResponse.json({ status: "success", reply: replyMsg });
+        }
+      } else {
+        // If they just typed yes or no but have no pending invites, maybe they were answering something else?
+        // Let's just ignore or fall through. If they explicitly sent "aa yes", it falls through.
+      }
     }
 
     // Handle Registration Commands

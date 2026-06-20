@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { getVerificationRequests } from "@/app/admin/verification/actions";
 import { maskPhone, maskEmail } from "@/lib/mask";
+import InviteChannelPartnerModal from "@/components/InviteChannelPartnerModal";
+import { supabase } from "@/lib/supabase";
 
 interface Agent {
   id: string;
@@ -30,37 +32,72 @@ export default function AgentDirectory() {
   const [reraFilter, setReraFilter] = useState<"all" | "rera">("all");
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [connections, setConnections] = useState<Record<string, "invited" | "connected" | "none">>({});
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Load connection states
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("mock_cp_connections") || "{}";
-      try {
-        setConnections(JSON.parse(stored));
-      } catch (e) {}
+    async function fetchConnections() {
+      if (typeof window !== "undefined") {
+        const phone = localStorage.getItem("agentsapp_logged_in_phone");
+        if (!phone) return;
+        
+        try {
+          const { data: builder } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("phone", phone)
+            .single();
+
+          if (builder) {
+            const { data: partners } = await supabase
+              .from("channel_partners")
+              .select("agent_id, status")
+              .eq("builder_id", builder.id);
+
+            if (partners) {
+              const newConns: Record<string, "invited" | "connected" | "none"> = {};
+              partners.forEach(p => {
+                newConns[p.agent_id] = p.status as "invited" | "connected";
+              });
+              setConnections(newConns);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load channel partners", e);
+        }
+      }
     }
-  }, []);
+    fetchConnections();
+  }, [isInviteModalOpen]); // Reload connections when modal closes
 
   const handleInvite = (agentId: string) => {
-    const newConnections = { ...connections, [agentId]: "invited" as const };
-    setConnections(newConnections);
-    localStorage.setItem("mock_cp_connections", JSON.stringify(newConnections));
-    // Also save an invite for the agent
-    const invites = JSON.parse(localStorage.getItem("mock_agent_invites") || "[]");
-    if (!invites.includes(agentId)) {
-      invites.push(agentId);
-      localStorage.setItem("mock_agent_invites", JSON.stringify(invites));
-    }
-    alert("Invitation sent! The agent will see this in their dashboard.");
+    // Individual invite button removed in favor of bulk invite modal.
+    // Keeping this function for manual override if needed, but UI button is removed.
   };
 
-  const handleCancelConnection = (agentId: string) => {
-    if (confirm("Cancel this connection? This will cost 10 credits and hide the agent's contact info.")) {
-      const newConnections = { ...connections };
-      delete newConnections[agentId];
-      setConnections(newConnections);
-      localStorage.setItem("mock_cp_connections", JSON.stringify(newConnections));
-      alert("Connection cancelled. 10 credits deducted.");
+  const handleCancelConnection = async (agentId: string) => {
+    if (confirm("Cancel this connection? This will hide the agent's contact info.")) {
+      const phone = localStorage.getItem("agentsapp_logged_in_phone");
+      if (!phone) return;
+
+      const { data: builder } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("phone", phone)
+        .single();
+        
+      if (builder) {
+        await supabase
+          .from("channel_partners")
+          .delete()
+          .eq("builder_id", builder.id)
+          .eq("agent_id", agentId);
+          
+        const newConnections = { ...connections };
+        delete newConnections[agentId];
+        setConnections(newConnections);
+        alert("Connection cancelled.");
+      }
     }
   };
 
@@ -125,6 +162,12 @@ export default function AgentDirectory() {
             View all approved Channel Partners, their verification IDs, and engagement scores.
           </p>
         </div>
+        <button 
+          onClick={() => setIsInviteModalOpen(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-md transition"
+        >
+          Invite Channel Partner
+        </button>
       </div>
 
       {/* Search and Filters */}
@@ -377,14 +420,7 @@ export default function AgentDirectory() {
                             >
                               Invitation Pending
                             </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleInvite(agent.id)}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-indigo-600/20"
-                            >
-                              Invite as Channel Partner (100 Credits on Accept)
-                            </button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     )}
@@ -395,6 +431,11 @@ export default function AgentDirectory() {
           )}
         </div>
       )}
+
+      <InviteChannelPartnerModal 
+        isOpen={isInviteModalOpen} 
+        onClose={() => setIsInviteModalOpen(false)} 
+      />
     </div>
   );
 }
