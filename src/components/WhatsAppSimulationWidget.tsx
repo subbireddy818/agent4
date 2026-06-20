@@ -19,6 +19,14 @@ export default function WhatsAppSimulationWidget() {
   const [regInterested, setRegInterested] = useState<string[]>([]);
   const [isLocDropdownOpen, setIsLocDropdownOpen] = useState(false);
   const [isPropDropdownOpen, setIsPropDropdownOpen] = useState(false);
+  
+  // Add Lead Form State
+  const [showAddLeadForm, setShowAddLeadForm] = useState(false);
+  const [addLeadName, setAddLeadName] = useState("");
+  const [addLeadPhone, setAddLeadPhone] = useState("");
+  const [addLeadLocation, setAddLeadLocation] = useState("");
+  const [addLeadBudget, setAddLeadBudget] = useState("");
+
   const [showDocsMenu, setShowDocsMenu] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -399,6 +407,62 @@ export default function WhatsAppSimulationWidget() {
                 </div>
               </div>
             )}
+
+            {showAddLeadForm && (
+              <div className="flex flex-col items-start mt-2">
+                <div className="max-w-[95%] bg-white text-slate-800 rounded-lg rounded-tl-none border border-slate-200 p-3 shadow-sm w-full space-y-2.5">
+                  <div className="font-bold text-xs text-[#25d366] pb-1 border-b border-slate-100">Add New Lead</div>
+                  
+                  <div className="w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Lead Name</label>
+                    <input type="text" placeholder="e.g. Ravi" value={addLeadName} onChange={e => setAddLeadName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  </div>
+                  
+                  <div className="w-full">
+                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Phone Number</label>
+                    <input type="text" placeholder="e.g. 9876543210" value={addLeadPhone} onChange={e => setAddLeadPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                  </div>
+                  
+                  <div className="flex space-x-2 w-full">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Location</label>
+                      <input type="text" placeholder="e.g. Kokapet" value={addLeadLocation} onChange={e => setAddLeadLocation(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Budget</label>
+                      <input type="text" placeholder="e.g. 2Cr" value={addLeadBudget} onChange={e => setAddLeadBudget(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2 pt-1.5">
+                    <button 
+                      onClick={() => {
+                        if (!addLeadName || !addLeadPhone) {
+                          alert("Name and Phone are required");
+                          return;
+                        }
+                        setShowAddLeadForm(false);
+                        const cmd = `add lead ${addLeadName} phone ${addLeadPhone} location ${addLeadLocation || "Any"} budget ${addLeadBudget || "Any"}`;
+                        setChatInput(cmd);
+                        setTimeout(() => document.getElementById("chatbot-submit-btn")?.click(), 50);
+                        
+                        // Reset form
+                        setAddLeadName("");
+                        setAddLeadPhone("");
+                        setAddLeadLocation("");
+                        setAddLeadBudget("");
+                      }}
+                      className="bg-[#25d366] text-white px-3 py-1.5 rounded font-bold hover:bg-[#16c47f] flex-1 text-center transition"
+                    >
+                      Add Lead
+                    </button>
+                    <button onClick={() => setShowAddLeadForm(false)} className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded font-bold hover:bg-slate-200 transition">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Suggestion Chips */}
@@ -421,6 +485,18 @@ export default function WhatsAppSimulationWidget() {
                 onClick={() => {
                   if (item.label.includes("Register") && !item.label.includes("Webinar")) {
                     setShowRegForm(true);
+                    setShowAddLeadForm(false);
+                    setTimeout(() => {
+                      if (chatBodyRef.current) {
+                        chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+                      }
+                    }, 50);
+                    return;
+                  }
+
+                  if (item.label.includes("Add Lead")) {
+                    setShowAddLeadForm(true);
+                    setShowRegForm(false);
                     setTimeout(() => {
                       if (chatBodyRef.current) {
                         chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
