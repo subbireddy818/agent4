@@ -580,6 +580,12 @@ export async function POST(req: NextRequest) {
       const nameMatch = cleanCommand.match(/add\s+(?:lead\s+)?(.*?)(?=\s+(?:phone|budget|location|looking|req|requirement)|$)/i);
       let leadName = nameMatch ? nameMatch[1].trim() : "New Lead";
 
+      if (!leadPhone || leadPhone.trim() === "") {
+        const replyErr = `🤖 Bot: Please provide a valid phone number. Example:\n"add lead Ravi phone 9876543210"`;
+        await sendOutboundReply(replyErr);
+        return NextResponse.json({ status: "success", reply: replyErr });
+      }
+
       // Insert lead into Supabase
       const { data: newLead, error } = await supabase
         .from("leads")

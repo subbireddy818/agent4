@@ -405,15 +405,15 @@ export default function WhatsAppSimulationWidget() {
           <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
             {[
               { label: "ℹ️ Help", cmd: "help", autoSubmit: true },
-              { label: "🆕 Register", cmd: "aa Register [Your Name] phone [Your Phone Number] agency [Your Agency Name] location [Area] interested in [Property Types]", autoSubmit: false },
-              { label: "🆕 Add Lead", cmd: "add lead [Name] phone [Number] location [Area] budget [Price]", autoSubmit: false },
-              { label: "🔍 Search", cmd: "Search [Location/BHK/Type]", autoSubmit: false },
-              { label: "⏰ Set Reminder", cmd: "Remind me to call [Name] time [Date/Time]", autoSubmit: false },
-              { label: "📁 Get Brochure", cmd: "Send [Project Name] brochure", autoSubmit: false },
+              { label: "🆕 Register", cmd: "aa Register Name phone Number agency AgencyName location Area interested in Types", autoSubmit: false },
+              { label: "🆕 Add Lead", cmd: "add lead Name phone Number location Area budget Price", autoSubmit: false },
+              { label: "🔍 Search", cmd: "Search Location BHK Type", autoSubmit: false },
+              { label: "⏰ Set Reminder", cmd: "Remind me to call Name time DateTime", autoSubmit: false },
+              { label: "📁 Get Brochure", cmd: "Send ProjectName brochure", autoSubmit: false },
               { label: "🚀 Upcoming Launches", cmd: "Upcoming launches", autoSubmit: true },
               { label: "🎥 Register Webinar", cmd: "Register webinar", autoSubmit: true },
               { label: "📋 My Leads", cmd: "my leads", autoSubmit: true },
-              { label: "⚡ Update Status", cmd: "[Lead Name] site visit", autoSubmit: false }
+              { label: "⚡ Update Status", cmd: "LeadName site visit", autoSubmit: false }
             ].map((item, idx) => (
               <button
                 key={idx}
