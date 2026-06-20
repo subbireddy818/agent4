@@ -586,6 +586,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ status: "success", reply: replyErr });
       }
 
+      if (!leadLoc || leadLoc.trim() === "" || leadLoc.toLowerCase() === "any") {
+        const replyErr = `🤖 Bot: Please provide a location. Example:\n"add lead Ravi phone 9876543210 location Kokapet"`;
+        await sendOutboundReply(replyErr);
+        return NextResponse.json({ status: "success", reply: replyErr });
+      }
+
+      if (!leadBudget || leadBudget.trim() === "" || leadBudget.toLowerCase() === "any") {
+        const replyErr = `🤖 Bot: Please provide a budget. Example:\n"add lead Ravi phone 9876543210 location Kokapet budget 2Cr"`;
+        await sendOutboundReply(replyErr);
+        return NextResponse.json({ status: "success", reply: replyErr });
+      }
+
       // Insert lead into Supabase
       const { data: newLead, error } = await supabase
         .from("leads")

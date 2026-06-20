@@ -437,8 +437,8 @@ export default function WhatsAppSimulationWidget() {
                   <div className="flex space-x-2 pt-1.5">
                     <button 
                       onClick={() => {
-                        if (!addLeadName || !addLeadPhone) {
-                          alert("Name and Phone are required");
+                        if (!addLeadName || !addLeadPhone || !addLeadLocation || !addLeadBudget) {
+                          alert("Name, Phone, Location, and Budget are all required");
                           return;
                         }
                         if (addLeadPhone.replace(/\D/g, "").length < 10) {
@@ -446,7 +446,7 @@ export default function WhatsAppSimulationWidget() {
                           return;
                         }
                         setShowAddLeadForm(false);
-                        const cmd = `add lead ${addLeadName} phone ${addLeadPhone} location ${addLeadLocation || "Any"} budget ${addLeadBudget || "Any"}`;
+                        const cmd = `add lead ${addLeadName} phone ${addLeadPhone} location ${addLeadLocation} budget ${addLeadBudget}`;
                         setChatInput(cmd);
                         setTimeout(() => document.getElementById("chatbot-submit-btn")?.click(), 50);
                         
