@@ -355,14 +355,20 @@ export async function POST(req: NextRequest) {
       }
 
       // Otherwise, save it as a regular document for the agent
-      await supabase.from("documents").insert([{
+      const { error: insertError } = await supabase.from("documents").insert([{
         agent_id: profile.id,
-        type: msgType, // 'image' or 'document'
+        type: "Other", // Use standard type to avoid enum/constraint errors
         url: mediaUrl,
         name: mediaFileName,
         send_count: 0,
         view_count: 0
       }]);
+
+      if (insertError) {
+        console.error("Failed to insert document:", insertError);
+        await sendOutboundReply(`🤖 Bot: ❌ Failed to save your document: ${insertError.message}`);
+        return NextResponse.json({ status: "error", reply: "Insert failed" });
+      }
 
       const replyMsg = `🤖 Bot: 📄 *File Received!*\nWe've securely saved your document to your "My Documents" vault.`;
       await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
