@@ -29,6 +29,8 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
   const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set());
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   
+  const [messageTemplate, setMessageTemplate] = useState("We are incredibly excited to invite you to join our exclusive Channel Partner network!");
+  
   const [sending, setSending] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
 
@@ -112,7 +114,8 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           builderPhone: phone,
-          agentIds: Array.from(selectedAgentIds)
+          agentIds: Array.from(selectedAgentIds),
+          messageTemplate
         })
       });
 
@@ -328,6 +331,21 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
                     ))
                   )}
                 </div>
+              </div>
+
+              {/* Message Template */}
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">Custom Message</label>
+                <textarea 
+                  rows={4}
+                  value={messageTemplate}
+                  onChange={(e) => setMessageTemplate(e.target.value)}
+                  placeholder="Write your custom invitation message..."
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl py-2 px-3 text-slate-800 outline-none text-sm font-medium transition"
+                />
+                <p className="text-[10px] text-slate-500 font-semibold italic">
+                  Note: The bot will automatically append "Reply Yes to accept, or No to decline." to the end of your message.
+                </p>
               </div>
 
             </div>

@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 
+function formatPhone(raw: string): string {
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  const last10 = digits.slice(-10);
+  if (last10.length !== 10) return raw; // Fallback
+  return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+}
+
 export async function POST(req: Request) {
   try {
-    const { builderPhone, agentIds } = await req.json();
+    const { builderPhone, agentIds, messageTemplate } = await req.json();
 
     if (!builderPhone) {
       return NextResponse.json({ success: false, error: "Missing builder phone" });
@@ -63,16 +71,20 @@ export async function POST(req: Request) {
     for (const agent of agents) {
       if (!agent.phone) continue;
       
-      const message = `Hi ${agent.name},\n\n*${builderName}* is inviting you to become an official Channel Partner!\n\nReply *Yes* to accept and earn 100 bonus credits, or *No* to decline.`;
+      const customMessage = messageTemplate ? messageTemplate.replace("[Builder Name]", builderName).replace("[Agent Name]", agent.name) : `*${builderName}* is inviting you to become an official Channel Partner!`;
+      
+      const message = `Hi ${agent.name},\n\n${customMessage}\n\nReply *Yes* to accept and earn 100 bonus credits, or *No* to decline.`;
       
       // Simulate sending via our local webhook or GallaBox logic
       // In a real app we'd call the Meta Graph API here.
       // We will assume that if we are using the sandbox, they will see it.
       
+      const formattedPhone = formatPhone(agent.phone);
+      
       // We can insert the outbound message into `whatsapp_messages` directly for the simulator to pick it up.
       await supabase.from("whatsapp_messages").insert([{
         direction: "outbound",
-        phone: agent.phone,
+        phone: formattedPhone,
         message_type: "text",
         content: message,
         outbound_status: 1
