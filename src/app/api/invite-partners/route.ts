@@ -58,10 +58,11 @@ export async function POST(req: Request) {
     // Assuming status transitions are handled.
     const { error: insertErr } = await supabase
       .from("channel_partners")
-      .upsert(insertPayload, { onConflict: "builder_id, agent_id" });
+      .upsert(insertPayload, { onConflict: "channel_partners_builder_id_agent_id_key" });
 
     if (insertErr) {
       console.error("Failed to insert channel partners", insertErr);
+      return NextResponse.json({ success: false, error: "Failed to insert channel partners: " + insertErr.message });
     }
 
     // Send WhatsApp messages (Simulated via webhook endpoint if using sandbox)
@@ -82,13 +83,18 @@ export async function POST(req: Request) {
       const formattedPhone = formatPhone(agent.phone);
       
       // We can insert the outbound message into `whatsapp_messages` directly for the simulator to pick it up.
-      await supabase.from("whatsapp_messages").insert([{
+      const { error: waErr } = await supabase.from("whatsapp_messages").insert([{
         direction: "outbound",
         phone: formattedPhone,
         message_type: "text",
         content: message,
         outbound_status: 1
       }]);
+      
+      if (waErr) {
+        console.error("Failed to insert whatsapp message", waErr);
+        return NextResponse.json({ success: false, error: "Failed to send message: " + waErr.message });
+      }
     }
 
     return NextResponse.json({ success: true, count: agents.length });
