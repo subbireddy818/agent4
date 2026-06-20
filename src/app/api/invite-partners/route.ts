@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     // Assuming status transitions are handled.
     const { error: insertErr } = await supabase
       .from("channel_partners")
-      .upsert(insertPayload, { onConflict: "channel_partners_builder_id_agent_id_key" });
+      .upsert(insertPayload, { onConflict: "builder_id,agent_id" });
 
     if (insertErr) {
       console.error("Failed to insert channel partners", insertErr);
