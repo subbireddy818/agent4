@@ -173,7 +173,26 @@ export default function WhatsAppSimulationWidget() {
       }
       
       const cleanPhone = rawPhone.replace(/\D/g, "");
-      const userName = localStorage.getItem("agentsapp_logged_in_user") || "Visitor";
+      const isImage = file.type.startsWith("image/");
+    const msgType = isImage ? "image" : "document";
+
+    try {
+      // Actually upload the file to Supabase via our new simulator upload API
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("phone", cleanPhone);
+
+      const uploadRes = await fetch("/api/upload-simulator", {
+        method: "POST",
+        body: formData,
+      });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok || !uploadData.url) {
+        throw new Error(uploadData.error || "Upload failed");
+      }
+
+      const fileUrl = uploadData.url;
 
       const messagePayload: any = {
         from: cleanPhone,
@@ -183,10 +202,12 @@ export default function WhatsAppSimulationWidget() {
       };
 
       if (isImage) {
-        messagePayload.image = { link: dummyUrl, caption: fileName };
+        messagePayload.image = { link: fileUrl, caption: fileName };
       } else {
-        messagePayload.document = { link: dummyUrl, filename: fileName };
+        messagePayload.document = { link: fileUrl, filename: fileName };
       }
+
+      const userName = localStorage.getItem("agentsapp_logged_in_user") || "Visitor";
 
       const response = await fetch("/api/whatsapp/webhook", {
         method: "POST",
