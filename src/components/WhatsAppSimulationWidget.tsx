@@ -155,8 +155,6 @@ export default function WhatsAppSimulationWidget() {
     const fileName = file.name;
     const isImage = file.type.startsWith("image/");
     const msgType = isImage ? "image" : "document";
-    // We create a dummy URL for simulation since we don't have a real file storage here
-    const dummyUrl = `https://example.com/simulated-uploads/${encodeURIComponent(fileName)}`;
 
     setChatHistory(prev => [...prev, `👤 You: [Sent a ${msgType}: ${fileName}]`]);
 
@@ -173,10 +171,7 @@ export default function WhatsAppSimulationWidget() {
       }
       
       const cleanPhone = rawPhone.replace(/\D/g, "");
-      const isImage = file.type.startsWith("image/");
-    const msgType = isImage ? "image" : "document";
 
-    try {
       // Actually upload the file to Supabase via our new simulator upload API
       const formData = new FormData();
       formData.append("file", file);
