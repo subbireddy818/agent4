@@ -149,6 +149,9 @@ export default function AgentDirectory() {
     return matchesSearch && matchesRera && matchesLocation;
   });
 
+  const connectedCount = Object.values(connections).filter(s => s === "connected").length;
+  const pendingCount = Object.values(connections).filter(s => s === "invited").length;
+
   return (
     <div className="space-y-6 text-slate-800">
       {/* Header */}
@@ -168,6 +171,22 @@ export default function AgentDirectory() {
         >
           Invite Channel Partner
         </button>
+      </div>
+
+      {/* Connection Stats Banner */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Accepted Partners</p>
+          <p className="text-2xl font-black text-emerald-600 mt-1">{connectedCount}</p>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Invites</p>
+          <p className="text-2xl font-black text-amber-500 mt-1">{pendingCount}</p>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center col-span-2 md:col-span-2 bg-gradient-to-r from-indigo-50 to-white">
+          <p className="text-xs font-bold text-slate-600">Grow your network to increase sales!</p>
+          <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Verified agents you invite will automatically link to your profile.</p>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -351,7 +370,9 @@ export default function AgentDirectory() {
                           </div>
                           <div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Phone Number</p>
-                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">{maskPhone(agent.phone)}</p>
+                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">
+                              {connections[agent.id] === "connected" ? agent.phone : maskPhone(agent.phone)}
+                            </p>
                           </div>
                         </div>
 
@@ -366,7 +387,9 @@ export default function AgentDirectory() {
                           </div>
                           <div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Email Address</p>
-                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">{maskEmail(agent.email || "")}</p>
+                            <p className="text-slate-800 text-sm font-extrabold mt-0.5">
+                              {connections[agent.id] === "connected" ? (agent.email || "No Email") : maskEmail(agent.email || "")}
+                            </p>
                           </div>
                         </div>
 
