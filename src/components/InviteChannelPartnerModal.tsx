@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Users, X, MapPin, Send, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Users, X, MapPin, Send, Loader2, CheckSquare, Square } from "lucide-react";
 import { HYDERABAD_LOCATIONS } from "@/lib/hyderabadLocations";
 import { supabase } from "@/lib/supabase";
+import { maskPhone } from "@/lib/mask";
+
+interface AgentProfile {
+  id: string;
+  name: string;
+  agency_name: string;
+  location: string;
+  is_rera_approved: boolean;
+}
 
 interface InviteChannelPartnerModalProps {
   isOpen: boolean;
@@ -15,21 +24,26 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [locationSearch, setLocationSearch] = useState("");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const [estimatedReach, setEstimatedReach] = useState(0);
+  
+  const [filteredAgents, setFilteredAgents] = useState<AgentProfile[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set());
+  const [isLoadingAgents, setIsLoadingAgents] = useState(false);
+  
   const [sending, setSending] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchEstimatedReach();
+      fetchFilteredAgents();
     }
   }, [isOpen, selectedLocations, recipientFilter]);
 
-  async function fetchEstimatedReach() {
+  async function fetchFilteredAgents() {
+    setIsLoadingAgents(true);
     try {
       let query = supabase
         .from("profiles")
-        .select("id", { count: "exact", head: true })
+        .select("id, name, agency_name, location, is_rera_approved")
         .eq("role", "agent")
         .eq("status", "approved");
 
@@ -41,10 +55,20 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
         query = query.in("location", selectedLocations);
       }
 
-      const { count } = await query;
-      setEstimatedReach(count || 0);
+      const { data, error } = await query;
+      if (!error && data) {
+        setFilteredAgents(data);
+        // By default, select all filtered agents
+        setSelectedAgentIds(new Set(data.map(a => a.id)));
+      } else {
+        setFilteredAgents([]);
+        setSelectedAgentIds(new Set());
+      }
     } catch {
-      setEstimatedReach(0);
+      setFilteredAgents([]);
+      setSelectedAgentIds(new Set());
+    } finally {
+      setIsLoadingAgents(false);
     }
   }
 
@@ -54,14 +78,32 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
     );
   };
 
+  const toggleAgentSelection = (id: string) => {
+    const newSelection = new Set(selectedAgentIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedAgentIds(newSelection);
+  };
+
+  const selectAll = () => {
+    setSelectedAgentIds(new Set(filteredAgents.map(a => a.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedAgentIds(new Set());
+  };
+
   const filteredLocations = HYDERABAD_LOCATIONS.filter((loc) =>
     loc.toLowerCase().includes(locationSearch.toLowerCase())
   );
 
   const handleLaunchCampaign = async () => {
-    setSending(true);
+    if (selectedAgentIds.size === 0) return;
     
-    // Call server API to send invites
+    setSending(true);
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
     
     try {
@@ -70,8 +112,7 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           builderPhone: phone,
-          recipientFilter,
-          selectedLocations
+          agentIds: Array.from(selectedAgentIds)
         })
       });
 
@@ -124,7 +165,7 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
               <div>
                 <h3 className="text-xl font-extrabold text-slate-800">Invitations Sent!</h3>
                 <p className="text-sm text-slate-500 font-medium mt-1">
-                  We've broadcasted the channel partner invitation to {estimatedReach} agents.
+                  We've broadcasted the channel partner invitation to {selectedAgentIds.size} agents.
                 </p>
               </div>
             </div>
@@ -133,9 +174,9 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
               
               {/* RERA Filter */}
               <div className="space-y-2">
-                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">Agent Type</label>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">Agent Type Filter</label>
                 <div className="flex space-x-3">
-                  <label className={`flex-1 flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition ${recipientFilter === "all" ? "border-indigo-600 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+                  <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition ${recipientFilter === "all" ? "border-indigo-600 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
                     <input 
                       type="radio" 
                       name="agentType" 
@@ -145,7 +186,7 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
                     />
                     <span className={`text-sm font-extrabold ${recipientFilter === "all" ? "text-indigo-700" : "text-slate-700"}`}>All Verified Agents</span>
                   </label>
-                  <label className={`flex-1 flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition ${recipientFilter === "rera" ? "border-indigo-600 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+                  <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition ${recipientFilter === "rera" ? "border-indigo-600 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
                     <input 
                       type="radio" 
                       name="agentType" 
@@ -164,11 +205,8 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
               {/* Location Filter */}
               <div className="space-y-2">
                 <label className="block uppercase tracking-wider text-[10px] font-extrabold text-slate-500">
-                  Filter by Location
+                  Location Filter
                 </label>
-                <p className="text-[10px] text-slate-400 -mt-1 font-semibold">
-                  Leave empty to invite agents across all locations.
-                </p>
 
                 {selectedLocations.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
@@ -190,18 +228,18 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search areas (e.g. Kokapet, Gachibowli)"
+                    placeholder="Search areas to filter (e.g. Kokapet)"
                     value={locationSearch}
                     onChange={(e) => {
                       setLocationSearch(e.target.value);
                       setShowLocationDropdown(true);
                     }}
                     onFocus={() => setShowLocationDropdown(true)}
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3 text-slate-800 outline-none text-sm font-medium transition"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl py-2 px-3 text-slate-800 outline-none text-sm font-medium transition"
                   />
                   
                   {showLocationDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 shadow-xl rounded-xl max-h-48 overflow-y-auto">
                       <div className="sticky top-0 bg-slate-50 border-b border-slate-100 p-2 flex justify-between items-center">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Select Areas</span>
                         <button type="button" onClick={() => setShowLocationDropdown(false)} className="text-slate-400 hover:text-slate-600 p-1">
@@ -237,14 +275,59 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
                 </div>
               </div>
 
-              {/* Message Preview */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">WhatsApp Message Preview</label>
-                <p className="text-sm text-slate-700 whitespace-pre-line font-medium leading-relaxed">
-                  Hi Agent,<br/><br/>
-                  We are inviting you to become an official Channel Partner!<br/>
-                  Reply <strong>Yes</strong> to accept and earn 100 bonus credits, or <strong>No</strong> to decline.
-                </p>
+              {/* Agent Selection List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                    Select Agents ({selectedAgentIds.size} / {filteredAgents.length})
+                  </label>
+                  <div className="flex space-x-3 text-[10px] font-bold uppercase tracking-wider">
+                    <button type="button" onClick={selectAll} className="text-indigo-600 hover:text-indigo-700">Select All</button>
+                    <button type="button" onClick={deselectAll} className="text-slate-500 hover:text-slate-700">Clear</button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl border border-slate-200 max-h-56 overflow-y-auto p-1">
+                  {isLoadingAgents ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-slate-400">
+                      <Loader2 className="w-5 h-5 animate-spin mb-2" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Loading agents...</span>
+                    </div>
+                  ) : filteredAgents.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400">
+                      <p className="text-xs font-bold uppercase tracking-wider">No agents match filters</p>
+                    </div>
+                  ) : (
+                    filteredAgents.map(agent => (
+                      <div 
+                        key={agent.id}
+                        onClick={() => toggleAgentSelection(agent.id)}
+                        className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg cursor-pointer transition border border-transparent hover:border-slate-200"
+                      >
+                        <div className="shrink-0 text-indigo-600">
+                          {selectedAgentIds.has(agent.id) ? (
+                            <CheckSquare className="w-5 h-5" />
+                          ) : (
+                            <Square className="w-5 h-5 text-slate-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-extrabold text-slate-800 truncate">{agent.name}</span>
+                            {agent.is_rera_approved && (
+                              <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shrink-0 font-bold">RERA</span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium mt-0.5 truncate">
+                            <span>{agent.agency_name}</span>
+                            <span>•</span>
+                            <span className="truncate">{agent.location}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
             </div>
@@ -255,7 +338,7 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
         {!sentSuccess && (
           <div className="border-t border-slate-100 p-4 bg-slate-50/50 flex items-center justify-between">
             <div className="text-xs font-bold text-slate-500">
-              Estimated Reach: <span className="text-indigo-600 text-sm font-extrabold">{estimatedReach}</span> agents
+              Selected: <span className="text-indigo-600 text-sm font-extrabold">{selectedAgentIds.size}</span> agents
             </div>
             <div className="flex space-x-3">
               <button onClick={onClose} disabled={sending} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-xl transition text-sm">
@@ -263,7 +346,7 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
               </button>
               <button 
                 onClick={handleLaunchCampaign}
-                disabled={sending || estimatedReach === 0}
+                disabled={sending || selectedAgentIds.size === 0}
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2 rounded-xl font-extrabold text-sm shadow-md transition flex items-center"
               >
                 {sending ? (

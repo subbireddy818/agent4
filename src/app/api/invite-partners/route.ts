@@ -3,10 +3,14 @@ import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
-    const { builderPhone, recipientFilter, selectedLocations } = await req.json();
+    const { builderPhone, agentIds } = await req.json();
 
     if (!builderPhone) {
       return NextResponse.json({ success: false, error: "Missing builder phone" });
+    }
+
+    if (!agentIds || !Array.isArray(agentIds) || agentIds.length === 0) {
+      return NextResponse.json({ success: false, error: "No agents selected" });
     }
 
     // Lookup builder
@@ -20,21 +24,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Builder not found" });
     }
 
-    // Build query for agents
-    let query = supabase
+    // Fetch the specific selected agents
+    const { data: agents, error: agentsErr } = await supabase
       .from("profiles")
       .select("id, phone, name")
-      .eq("role", "agent")
-      .eq("status", "approved");
-
-    if (recipientFilter === "rera") {
-      query = query.eq("is_rera_approved", true);
-    }
-    if (selectedLocations && selectedLocations.length > 0) {
-      query = query.in("location", selectedLocations);
-    }
-
-    const { data: agents, error: agentsErr } = await query;
+      .in("id", agentIds);
 
     if (agentsErr || !agents) {
       return NextResponse.json({ success: false, error: "Failed to fetch agents" });
