@@ -332,31 +332,39 @@ export async function POST(req: NextRequest) {
       .eq("phone", formattedPhone)
       .maybeSingle();
 
-    // Handle Media Uploads for KYC Verification
+    // Handle Media Uploads (Documents/Images)
     if (msgType === "image" || msgType === "document") {
       if (!profile) {
         await sendOutboundReply(`🤖 Bot: We received a file, but your phone number is not registered. Please register first by typing *aa register [Name]*`);
         return NextResponse.json({ status: "success", reply: "Unregistered user uploaded file" });
       }
 
-      // Log the document to verification_docs table
-      await supabase.from("verification_docs").insert([{
-        agent_id: profile.id,
-        doc_type: msgType,
-        file_url: mediaUrl,
-        file_name: mediaFileName,
-        status: "pending"
-      }]);
-
-      // Update agent status if they are in pending or docs_required state
+      // If the agent is in a pending verification state, log to verification_docs
       if (profile.status === "pending" || profile.status === "docs_required" || profile.status === "rejected") {
+        await supabase.from("verification_docs").insert([{
+          agent_id: profile.id,
+          doc_type: msgType,
+          file_url: mediaUrl,
+          file_name: mediaFileName,
+          status: "pending"
+        }]);
         await supabase.from("profiles").update({ status: "docs_uploaded" }).eq("id", profile.id);
-        const replyMsg = `🤖 Bot: 📄 *File Received!*\nThank you for uploading your document. Our admin team will review it shortly. Your status is now *Docs Uploaded*.`;
+        const replyMsg = `🤖 Bot: 📄 *Verification File Received!*\nThank you for uploading your document. Our admin team will review it shortly. Your status is now *Docs Uploaded*.`;
         await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
         return NextResponse.json({ status: "success", reply: replyMsg });
       }
 
-      const replyMsg = `🤖 Bot: 📄 *File Received!*\nWe've securely saved your document to your profile.`;
+      // Otherwise, save it as a regular document for the agent
+      await supabase.from("documents").insert([{
+        agent_id: profile.id,
+        type: msgType, // 'image' or 'document'
+        url: mediaUrl,
+        name: mediaFileName,
+        send_count: 0,
+        view_count: 0
+      }]);
+
+      const replyMsg = `🤖 Bot: 📄 *File Received!*\nWe've securely saved your document to your "My Documents" vault.`;
       await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
       return NextResponse.json({ status: "success", reply: replyMsg });
     }
@@ -1100,6 +1108,52 @@ export async function POST(req: NextRequest) {
       agents.forEach((a: any, idx: number) => {
         replyMsg += `${idx + 1}. ✅ *${a.name}*\n   📱 ${a.phone} | 🏢 ${a.agency_name || "N/A"}\n\n`;
       });
+      await sendOutboundReply(replyMsg.trim());
+      return NextResponse.json({ status: "success", reply: replyMsg.trim() });
+    }
+
+    // 15. MY DOCS / DOCUMENTS INTENT
+    if (commandLower === "my docs" || commandLower === "documents" || commandLower === "my documents") {
+      // Fetch agent's own documents and builder brochures
+      const { data: agentDocs } = await supabase
+        .from("documents")
+        .select("name, type, url, created_at, projects(name)")
+        .eq("agent_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      // Fetch builder docs (e.g. brochures, price lists, general docs) that are available to agents.
+      // Usually these have no agent_id or they are uploaded by builders. 
+      // Based on our schema, let's fetch documents where agent_id is null or type is brochure.
+      const { data: builderDocs } = await supabase
+        .from("documents")
+        .select("name, type, url, created_at, projects(name)")
+        .is("agent_id", null)
+        .order("created_at", { ascending: false });
+
+      if ((!agentDocs || agentDocs.length === 0) && (!builderDocs || builderDocs.length === 0)) {
+        const replyEmpty = "🤖 Bot: You have no documents saved in your vault, and no builder brochures are available.";
+        await sendOutboundReply(replyEmpty);
+        return NextResponse.json({ status: "success", reply: replyEmpty });
+      }
+
+      let replyMsg = `📁 *Your Document Vault*\n\n`;
+
+      if (agentDocs && agentDocs.length > 0) {
+        replyMsg += `*My Uploaded Documents:*\n`;
+        agentDocs.forEach((d, idx) => {
+          replyMsg += `${idx + 1}. 📄 *${d.name}* (${d.type})\n   🔗 Link: ${d.url}\n\n`;
+        });
+      }
+
+      if (builderDocs && builderDocs.length > 0) {
+        replyMsg += `*Builder Brochures & Shared Docs:*\n`;
+        builderDocs.forEach((d, idx) => {
+          const projName = d.projects?.name ? ` - ${d.projects.name}` : "";
+          replyMsg += `${idx + 1}. 🏢 *${d.name}*${projName}\n   🔗 Link: ${d.url}\n\n`;
+        });
+      }
+
+      replyMsg += `👉 You can send any file here, and it will be safely stored in your vault!`;
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
     }

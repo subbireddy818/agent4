@@ -20,6 +20,7 @@ export default function WhatsAppSimulationWidget() {
   const [isLocDropdownOpen, setIsLocDropdownOpen] = useState(false);
   const [isPropDropdownOpen, setIsPropDropdownOpen] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -143,6 +144,78 @@ export default function WhatsAppSimulationWidget() {
       setChatHistory(prev => [...prev, botReply]);
     } catch (err: any) {
       setChatHistory(prev => [...prev, `🤖 Bot: ❌ Failed to dispatch webhook: ${err.message}`]);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const fileName = file.name;
+    const isImage = file.type.startsWith("image/");
+    const msgType = isImage ? "image" : "document";
+    // We create a dummy URL for simulation since we don't have a real file storage here
+    const dummyUrl = `https://example.com/simulated-uploads/${encodeURIComponent(fileName)}`;
+
+    setChatHistory(prev => [...prev, `👤 You: [Sent a ${msgType}: ${fileName}]`]);
+
+    try {
+      let rawPhone = localStorage.getItem("agentsapp_logged_in_phone");
+      if (!rawPhone) {
+        let simPhone = localStorage.getItem("agentsapp_sim_phone");
+        if (!simPhone) {
+          const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+          simPhone = `+91 99${randomNum}`;
+          localStorage.setItem("agentsapp_sim_phone", simPhone);
+        }
+        rawPhone = simPhone;
+      }
+      
+      const cleanPhone = rawPhone.replace(/\D/g, "");
+      const userName = localStorage.getItem("agentsapp_logged_in_user") || "Visitor";
+
+      const messagePayload: any = {
+        from: cleanPhone,
+        id: `wamid.sandbox_${Date.now()}`,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        type: msgType
+      };
+
+      if (isImage) {
+        messagePayload.image = { link: dummyUrl, caption: fileName };
+      } else {
+        messagePayload.document = { link: dummyUrl, filename: fileName };
+      }
+
+      const response = await fetch("/api/whatsapp/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          object: "whatsapp_business_account",
+          entry: [{
+            id: "sandbox-entry",
+            changes: [{
+              field: "messages",
+              value: {
+                messaging_product: "whatsapp",
+                metadata: { display_phone_number: "919999999999", phone_number_id: "bot-phone-id" },
+                contacts: [{ profile: { name: userName }, wa_id: cleanPhone }],
+                messages: [messagePayload]
+              }
+            }]
+          }]
+        })
+      });
+
+      const data = await response.json();
+      const rawReply = data.reply || "File processed successfully.";
+      const botReply = rawReply.startsWith("🤖") ? rawReply : `🤖 Bot: ${rawReply}`;
+      setChatHistory(prev => [...prev, botReply]);
+
+      // Reset file input
+      e.target.value = '';
+    } catch (err: any) {
+      setChatHistory(prev => [...prev, `🤖 Bot: ❌ Failed to send file: ${err.message}`]);
     }
   };
 
@@ -360,6 +433,20 @@ export default function WhatsAppSimulationWidget() {
 
           {/* Chat Footer Input */}
           <form onSubmit={handleSendChat} className="p-2 bg-[#f0f2f5] border-t border-slate-200 flex items-center space-x-2 shrink-0">
+            <input 
+              type="file" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+              accept="image/*,.pdf,.doc,.docx"
+            />
+            <button 
+              type="button" 
+              onClick={() => fileInputRef.current?.click()}
+              className="w-8 h-8 rounded-full bg-white text-slate-500 hover:text-slate-700 flex items-center justify-center text-lg shrink-0 shadow-sm transition"
+            >
+              📎
+            </button>
             <input 
               id="chatbot-input-field"
               type="text"
