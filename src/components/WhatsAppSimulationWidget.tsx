@@ -473,15 +473,13 @@ export default function WhatsAppSimulationWidget() {
           <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
             {[
               { label: "ℹ️ Help", cmd: "help", autoSubmit: true },
-              { label: "🆕 Register", cmd: "aa Register Name phone Number agency AgencyName location Area interested in Types", autoSubmit: false },
-              { label: "🆕 Add Lead", cmd: "add lead Name phone Number location Area budget Price", autoSubmit: false },
-              { label: "🔍 Search", cmd: "Search Location BHK Type", autoSubmit: false },
-              { label: "⏰ Set Reminder", cmd: "Remind me to call Name time DateTime", autoSubmit: false },
+              { label: "🆕 Add Lead", cmd: "add a client ", autoSubmit: false },
+              { label: "🔍 Search Properties", cmd: "search for a 3bhk flat in kompally", autoSubmit: true },
+              { label: "🏢 Search Projects", cmd: "find projects by myhome", autoSubmit: true },
+              { label: "⏰ Reminders", cmd: "reminders", autoSubmit: true },
+              { label: "⏰ Set Reminder", cmd: "Remind me to call  time ", autoSubmit: false },
               { label: "📁 Get Brochure", cmd: "Send ProjectName brochure", autoSubmit: false },
-              { label: "🚀 Upcoming Launches", cmd: "Upcoming launches", autoSubmit: true },
-              { label: "🎥 Register Webinar", cmd: "Register webinar", autoSubmit: true },
-              { label: "📋 My Leads", cmd: "my leads", autoSubmit: true },
-              { label: "⚡ Update Status", cmd: "LeadName site visit", autoSubmit: false }
+              { label: "📋 My Leads", cmd: "my leads", autoSubmit: true }
             ].map((item, idx) => (
               <button
                 key={idx}
@@ -498,16 +496,7 @@ export default function WhatsAppSimulationWidget() {
                     return;
                   }
 
-                  if (item.label.includes("Add Lead")) {
-                    setShowAddLeadForm(true);
-                    setShowRegForm(false);
-                    setTimeout(() => {
-                      if (chatBodyRef.current) {
-                        chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-                      }
-                    }, 50);
-                    return;
-                  }
+
 
                   if (item.label.includes("Set Reminder")) {
                     setChatInput("Remind me to  time ");
