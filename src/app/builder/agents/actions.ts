@@ -35,3 +35,31 @@ export async function getBuilderConnections(phone: string) {
     return { success: false, error: err.message };
   }
 }
+
+export async function cancelBuilderConnection(phone: string, agentId: string) {
+  try {
+    const { data: builder, error: builderErr } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("phone", phone)
+      .single();
+
+    if (builderErr || !builder) {
+      return { success: false, error: "Builder not found" };
+    }
+
+    const { error: deleteErr } = await supabase
+      .from("channel_partners")
+      .delete()
+      .eq("builder_id", builder.id)
+      .eq("agent_id", agentId);
+
+    if (deleteErr) {
+      return { success: false, error: deleteErr.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}

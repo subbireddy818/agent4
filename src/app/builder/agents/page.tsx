@@ -10,7 +10,7 @@ import { getVerificationRequests } from "@/app/admin/verification/actions";
 import { maskPhone, maskEmail } from "@/lib/mask";
 import InviteChannelPartnerModal from "@/components/InviteChannelPartnerModal";
 import { supabase } from "@/lib/supabase";
-import { getBuilderConnections } from "./actions";
+import { getBuilderConnections, cancelBuilderConnection } from "./actions";
 
 interface Agent {
   id: string;
@@ -69,23 +69,15 @@ export default function AgentDirectory() {
       const phone = localStorage.getItem("agentsapp_logged_in_phone");
       if (!phone) return;
 
-      const { data: builder } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("phone", phone)
-        .single();
+      const res = await cancelBuilderConnection(phone, agentId);
         
-      if (builder) {
-        await supabase
-          .from("channel_partners")
-          .delete()
-          .eq("builder_id", builder.id)
-          .eq("agent_id", agentId);
-          
+      if (res.success) {
         const newConnections = { ...connections };
         delete newConnections[agentId];
         setConnections(newConnections);
         alert("Connection cancelled.");
+      } else {
+        alert("Failed to cancel connection: " + res.error);
       }
     }
   };
@@ -448,6 +440,7 @@ export default function AgentDirectory() {
       <InviteChannelPartnerModal 
         isOpen={isInviteModalOpen} 
         onClose={() => setIsInviteModalOpen(false)} 
+        existingConnections={connections}
       />
     </div>
   );

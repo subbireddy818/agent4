@@ -17,9 +17,10 @@ interface AgentProfile {
 interface InviteChannelPartnerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  existingConnections?: Record<string, "invited" | "connected" | "none">;
 }
 
-export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteChannelPartnerModalProps) {
+export default function InviteChannelPartnerModal({ isOpen, onClose, existingConnections }: InviteChannelPartnerModalProps) {
   const [recipientFilter, setRecipientFilter] = useState<"all" | "rera">("all");
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [locationSearch, setLocationSearch] = useState("");
@@ -59,9 +60,13 @@ export default function InviteChannelPartnerModal({ isOpen, onClose }: InviteCha
 
       const { data, error } = await query;
       if (!error && data) {
-        setFilteredAgents(data);
+        let finalData = data;
+        if (existingConnections) {
+          finalData = data.filter(a => !existingConnections[a.id]);
+        }
+        setFilteredAgents(finalData);
         // By default, select all filtered agents
-        setSelectedAgentIds(new Set(data.map(a => a.id)));
+        setSelectedAgentIds(new Set(finalData.map(a => a.id)));
       } else {
         setFilteredAgents([]);
         setSelectedAgentIds(new Set());
