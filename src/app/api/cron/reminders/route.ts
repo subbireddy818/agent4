@@ -31,11 +31,11 @@ export async function GET(req: NextRequest) {
     
     // First try standard ISO string parsing in case it's saved nicely
     const isoDate = new Date(timeStr);
-    if (!isNaN(isoDate.getTime())) {
+    if (!isNaN(isoDate.getTime()) && timeStr.includes("T")) {
        parsedDate = isoDate;
     } else {
-       // Fallback to NLP parsing
-       parsedDate = chrono.parseDate(timeStr);
+       // Fallback to NLP parsing, forcing IST timezone (+330 mins)
+       parsedDate = chrono.parseDate(timeStr, new Date(), { timezone: 330 });
     }
 
     if (parsedDate && parsedDate <= now) {
