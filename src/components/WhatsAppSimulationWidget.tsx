@@ -509,6 +509,23 @@ export default function WhatsAppSimulationWidget() {
                     return;
                   }
 
+                  if (item.label.includes("Set Reminder")) {
+                    setChatInput("Remind me to  time ");
+                    setTimeout(() => {
+                      try {
+                        const picker = document.getElementById("bot-datetime-picker") as HTMLInputElement;
+                        if (picker && typeof picker.showPicker === 'function') {
+                          picker.showPicker();
+                        } else if (picker) {
+                          picker.click();
+                        }
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }, 50);
+                    return;
+                  }
+
                   setChatInput(item.cmd);
                   
                   if (item.autoSubmit !== false) {
@@ -580,6 +597,7 @@ export default function WhatsAppSimulationWidget() {
                 <Calendar className="w-3.5 h-3.5" />
               </button>
               <input 
+                id="bot-datetime-picker"
                 type="datetime-local" 
                 title="Pick Date & Time"
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
