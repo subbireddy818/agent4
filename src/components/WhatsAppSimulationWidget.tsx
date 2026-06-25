@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, X } from "lucide-react";
+import { MessageSquare, X, Calendar } from "lucide-react";
 import { getNewSimulatedMessages } from "@/app/auth/actions";
 import { HYDERABAD_LOCATIONS } from "@/lib/hyderabadLocations";
 
@@ -571,6 +571,32 @@ export default function WhatsAppSimulationWidget() {
             >
               Documents
             </button>
+            <div className="relative shrink-0 flex items-center justify-center">
+              <button 
+                type="button" 
+                title="Pick Date & Time"
+                className="w-8 h-8 rounded-full bg-white text-slate-600 hover:text-slate-800 flex items-center justify-center shadow-sm transition border border-slate-200"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+              </button>
+              <input 
+                type="datetime-local" 
+                title="Pick Date & Time"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const d = new Date(val);
+                  const formatted = d.toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+                  if (!chatInput.toLowerCase().includes("time")) {
+                    setChatInput(prev => prev ? `${prev} time ${formatted}` : `Remind me to  time ${formatted}`);
+                  } else {
+                    setChatInput(prev => `${prev.trim()} ${formatted}`);
+                  }
+                  e.target.value = ''; // Reset so they can select the same date again if needed
+                }}
+              />
+            </div>
             <input 
               id="chatbot-input-field"
               type="text"
