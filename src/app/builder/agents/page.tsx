@@ -10,6 +10,7 @@ import { getVerificationRequests } from "@/app/admin/verification/actions";
 import { maskPhone, maskEmail } from "@/lib/mask";
 import InviteChannelPartnerModal from "@/components/InviteChannelPartnerModal";
 import { supabase } from "@/lib/supabase";
+import { getBuilderConnections } from "./actions";
 
 interface Agent {
   id: string;
@@ -41,30 +42,12 @@ export default function AgentDirectory() {
         const phone = localStorage.getItem("agentsapp_logged_in_phone");
         if (!phone) return;
         
-        try {
-          const { data: builder } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("phone", phone)
-            .single();
-
-          if (builder) {
-            const { data: partners } = await supabase
-              .from("channel_partners")
-              .select("agent_id, status")
-              .eq("builder_id", builder.id);
-
-            if (partners) {
-              const newConns: Record<string, "invited" | "connected" | "none"> = {};
-              partners.forEach(p => {
-                newConns[p.agent_id] = p.status as "invited" | "connected";
-              });
-              setConnections(newConns);
-            }
+          const res = await getBuilderConnections(phone);
+          if (res.success && res.connections) {
+            setConnections(res.connections);
+          } else if (res.error) {
+            console.error("Failed to load channel partners:", res.error);
           }
-        } catch (e) {
-          console.error("Failed to load channel partners", e);
-        }
       }
     }
     fetchConnections();
