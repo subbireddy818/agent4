@@ -33,6 +33,7 @@ export default function AgentDirectory() {
   const [reraFilter, setReraFilter] = useState<"all" | "rera">("all");
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [connections, setConnections] = useState<Record<string, "invited" | "connected" | "none">>({});
+  const [connectionFilter, setConnectionFilter] = useState<"all" | "connected" | "invited">("all");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   // Load connection states
@@ -133,8 +134,11 @@ export default function AgentDirectory() {
     
     const matchesRera = reraFilter === "all" || agent.is_rera_approved;
     const matchesLocation = selectedLocations.length === 0 || (agent.location && selectedLocations.includes(agent.location.trim()));
+    const matchesConnection = connectionFilter === "all" || 
+      (connectionFilter === "connected" && connections[agent.id] === "connected") ||
+      (connectionFilter === "invited" && connections[agent.id] === "invited");
 
-    return matchesSearch && matchesRera && matchesLocation;
+    return matchesSearch && matchesRera && matchesLocation && matchesConnection;
   });
 
   const connectedCount = Object.values(connections).filter(s => s === "connected").length;
@@ -163,12 +167,18 @@ export default function AgentDirectory() {
 
       {/* Connection Stats Banner */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Accepted Partners</p>
+        <div 
+          onClick={() => setConnectionFilter(prev => prev === "connected" ? "all" : "connected")}
+          className={`p-4 rounded-2xl border shadow-sm flex flex-col justify-center items-center text-center cursor-pointer transition ${connectionFilter === "connected" ? "bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500" : "bg-white border-slate-200 hover:bg-slate-50"}`}
+        >
+          <p className={`text-[10px] font-bold uppercase tracking-wider ${connectionFilter === "connected" ? "text-emerald-700" : "text-slate-400"}`}>Accepted Partners</p>
           <p className="text-2xl font-black text-emerald-600 mt-1">{connectedCount}</p>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Invites</p>
+        <div 
+          onClick={() => setConnectionFilter(prev => prev === "invited" ? "all" : "invited")}
+          className={`p-4 rounded-2xl border shadow-sm flex flex-col justify-center items-center text-center cursor-pointer transition ${connectionFilter === "invited" ? "bg-amber-50 border-amber-200 ring-2 ring-amber-500" : "bg-white border-slate-200 hover:bg-slate-50"}`}
+        >
+          <p className={`text-[10px] font-bold uppercase tracking-wider ${connectionFilter === "invited" ? "text-amber-700" : "text-slate-400"}`}>Pending Invites</p>
           <p className="text-2xl font-black text-amber-500 mt-1">{pendingCount}</p>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center col-span-2 md:col-span-2 bg-gradient-to-r from-indigo-50 to-white">
