@@ -68,6 +68,11 @@ export default function AgentDirectory() {
       }
     }
     fetchConnections();
+    
+    // Poll every 5 seconds to get real-time updates from bot interactions
+    const intervalId = setInterval(fetchConnections, 5000);
+    
+    return () => clearInterval(intervalId);
   }, [isInviteModalOpen]); // Reload connections when modal closes
 
   const handleInvite = (agentId: string) => {
