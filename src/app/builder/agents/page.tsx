@@ -360,11 +360,7 @@ export default function AgentDirectory() {
                     {isExpanded && (
                       <div className="px-6 pb-5 pt-3.5 bg-slate-50/30 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
                         <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
-                          {connections[agent.id] !== "connected" && (
-                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">Hidden</span>
-                            </div>
-                          )}
+
                           <div className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
                             <Phone className="w-4 h-4" />
                           </div>
@@ -377,11 +373,7 @@ export default function AgentDirectory() {
                         </div>
 
                         <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
-                          {connections[agent.id] !== "connected" && (
-                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">Hidden</span>
-                            </div>
-                          )}
+
                           <div className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
                             <Mail className="w-4 h-4" />
                           </div>
