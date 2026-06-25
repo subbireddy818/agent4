@@ -8,10 +8,10 @@ import {
   hashOtp,
   newOtpSalt,
   signSession,
-  timingSafeEqualHex,
   sessionCookieName,
   sessionTtlSeconds,
 } from "@/lib/session";
+import { GET as triggerCron } from "@/app/api/cron/reminders/route";
 
 // -----------------------------------------------------------------------------
 // Real OTP-based authentication.
@@ -773,6 +773,10 @@ export async function getNewSimulatedMessages(
   direction?: "inbound" | "outbound"
 ): Promise<{ ok: boolean; messages?: any[]; error?: string }> {
   try {
+    // Trigger background cron job (fire-and-forget) to process reminders.
+    // This is a workaround for Vercel Hobby tier not supporting minute-level cron jobs.
+    triggerCron({} as any).catch(() => {});
+
     const formattedPhone = formatPhone(phone);
     if (!formattedPhone) return { ok: false, error: "Invalid phone number" };
 
