@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Building2, PlusCircle, Megaphone, Calendar,
-  LogOut, RefreshCw, BarChart3, Users, User, Crown, Layers, Coins, FileText
+  LogOut, RefreshCw, BarChart3, Users, User, Crown, Layers, Coins, FileText, Gift
 } from "lucide-react";
 import { performLogout } from "@/components/SessionSync";
 
@@ -44,6 +44,7 @@ export default function BuilderSidebar() {
     { name: "Campaigns", href: "/builder/campaigns", icon: Megaphone },
     { name: "My Events", href: "/builder/events", icon: Calendar },
     { name: "My Followers", href: "/builder/followers", icon: Users },
+    { name: "Follower Rewards", href: "/builder/followers?tab=rewards", icon: Gift },
     ...(isSubBuilder ? [{ name: "Assigned Agents", href: "/builder/followers?tab=assigned", icon: Crown }] : []),
     { name: "Agent Directory", href: "/builder/agents", icon: Users },
     { name: "Profile", href: "/builder/profile", icon: User },

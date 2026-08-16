@@ -137,140 +137,145 @@ export default function AgentDirectory() {
   const pendingCount = Object.values(connections).filter(s => s === "invited").length;
 
   return (
-    <div className="space-y-6 text-slate-800">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Users className="w-7 h-7 text-indigo-600" />
-            <span>Agent Directory</span>
-          </h1>
-          <p className="text-[#64748b] text-xs font-semibold mt-0.5">
-            View all approved Channel Partners, their verification IDs, and engagement scores.
-          </p>
-        </div>
-        <button 
-          onClick={() => setIsInviteModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-md transition"
-        >
-          Invite Channel Partner
-        </button>
-      </div>
-
-      {/* Connection Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div 
-          onClick={() => setConnectionFilter(prev => prev === "connected" ? "all" : "connected")}
-          className={`p-4 rounded-2xl border shadow-sm flex flex-col justify-center items-center text-center cursor-pointer transition ${connectionFilter === "connected" ? "bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500" : "bg-white border-slate-200 hover:bg-slate-50"}`}
-        >
-          <p className={`text-[10px] font-bold uppercase tracking-wider ${connectionFilter === "connected" ? "text-emerald-700" : "text-slate-400"}`}>Accepted Partners</p>
-          <p className="text-2xl font-black text-emerald-600 mt-1">{connectedCount}</p>
-        </div>
-        <div 
-          onClick={() => setConnectionFilter(prev => prev === "invited" ? "all" : "invited")}
-          className={`p-4 rounded-2xl border shadow-sm flex flex-col justify-center items-center text-center cursor-pointer transition ${connectionFilter === "invited" ? "bg-amber-50 border-amber-200 ring-2 ring-amber-500" : "bg-white border-slate-200 hover:bg-slate-50"}`}
-        >
-          <p className={`text-[10px] font-bold uppercase tracking-wider ${connectionFilter === "invited" ? "text-amber-700" : "text-slate-400"}`}>Pending Invites</p>
-          <p className="text-2xl font-black text-amber-500 mt-1">{pendingCount}</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center col-span-2 md:col-span-2 bg-gradient-to-r from-indigo-50 to-white">
-          <p className="text-xs font-bold text-slate-600">Grow your network to increase sales!</p>
-          <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Verified agents you invite will automatically link to your profile.</p>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm text-xs font-semibold">
-        <div className="flex-1 max-w-md relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by name, agency name, or CP ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
-          />
+    <div className="h-[calc(100vh-5rem)] flex flex-col overflow-hidden text-slate-800 space-y-4">
+      {/* Fixed Top Controls & Boxes (No Scroll) */}
+      <div className="shrink-0 space-y-4">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <Users className="w-7 h-7 text-indigo-600" />
+              <span>Agent Directory</span>
+            </h1>
+            <p className="text-[#64748b] text-xs font-semibold mt-0.5">
+              View all approved Channel Partners, their verification IDs, and engagement scores.
+            </p>
+          </div>
+          <button 
+            onClick={() => setIsInviteModalOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-extrabold text-xs shadow-md transition"
+          >
+            Invite Channel Partner
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Location Filter (Multi-select) */}
-          <div className="flex items-center space-x-2 bg-white px-3 py-2 border border-slate-200 rounded-xl shadow-sm relative group">
-            <span className="text-slate-400 text-[10px] uppercase tracking-wider font-extrabold">Locations:</span>
-            <div className="text-slate-700 font-bold text-xs cursor-pointer flex items-center">
-              {selectedLocations.length === 0 ? "All Locations" : `${selectedLocations.length} Selected`}
-              <ChevronDown className="w-3.5 h-3.5 ml-1 text-slate-400" />
-            </div>
-            
-            {/* Dropdown Menu */}
-            <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 shadow-xl rounded-xl p-2 hidden group-hover:block z-10">
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                <label className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedLocations.length === 0}
-                    onChange={() => setSelectedLocations([])}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-xs font-bold text-slate-700">All Locations</span>
-                </label>
-                {uniqueLocations.map((loc) => (
-                  <label key={loc} className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer">
+        {/* Connection Stats Banner */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div 
+            onClick={() => setConnectionFilter(prev => prev === "connected" ? "all" : "connected")}
+            className={`p-3 rounded-2xl border shadow-sm flex flex-col justify-center items-center text-center cursor-pointer transition ${connectionFilter === "connected" ? "bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500" : "bg-white border-slate-200 hover:bg-slate-50"}`}
+          >
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${connectionFilter === "connected" ? "text-emerald-700" : "text-slate-400"}`}>Accepted Partners</p>
+            <p className="text-xl font-black text-emerald-600 mt-0.5">{connectedCount}</p>
+          </div>
+          <div 
+            onClick={() => setConnectionFilter(prev => prev === "invited" ? "all" : "invited")}
+            className={`p-3 rounded-2xl border shadow-sm flex flex-col justify-center items-center text-center cursor-pointer transition ${connectionFilter === "invited" ? "bg-amber-50 border-amber-200 ring-2 ring-amber-500" : "bg-white border-slate-200 hover:bg-slate-50"}`}
+          >
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${connectionFilter === "invited" ? "text-amber-700" : "text-slate-400"}`}>Pending Invites</p>
+            <p className="text-xl font-black text-amber-500 mt-0.5">{pendingCount}</p>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center col-span-2 md:col-span-2 bg-gradient-to-r from-indigo-50 to-white">
+            <p className="text-xs font-bold text-slate-600">Grow your network to increase sales!</p>
+            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Verified agents you invite will automatically link to your profile.</p>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-sm text-xs font-semibold">
+          <div className="flex-1 max-w-md relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by name, agency name, or CP ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Location Filter (Multi-select) */}
+            <div className="flex items-center space-x-2 bg-white px-3 py-1.5 border border-slate-200 rounded-xl shadow-sm relative group">
+              <span className="text-slate-400 text-[10px] uppercase tracking-wider font-extrabold">Locations:</span>
+              <div className="text-slate-700 font-bold text-xs cursor-pointer flex items-center">
+                {selectedLocations.length === 0 ? "All Locations" : `${selectedLocations.length} Selected`}
+                <ChevronDown className="w-3.5 h-3.5 ml-1 text-slate-400" />
+              </div>
+              
+              {/* Dropdown Menu */}
+              <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 shadow-xl rounded-xl p-2 hidden group-hover:block z-10">
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  <label className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer">
                     <input 
                       type="checkbox" 
-                      checked={selectedLocations.includes(loc)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedLocations([...selectedLocations, loc]);
-                        } else {
-                          setSelectedLocations(selectedLocations.filter(l => l !== loc));
-                        }
-                      }}
+                      checked={selectedLocations.length === 0}
+                      onChange={() => setSelectedLocations([])}
                       className="rounded text-indigo-600 focus:ring-indigo-500"
                     />
-                    <span className="text-xs font-bold text-slate-700">{loc}</span>
+                    <span className="text-xs font-bold text-slate-700">All Locations</span>
                   </label>
-                ))}
+                  {uniqueLocations.map((loc) => (
+                    <label key={loc} className="flex items-center space-x-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedLocations.includes(loc)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedLocations([...selectedLocations, loc]);
+                          } else {
+                            setSelectedLocations(selectedLocations.filter(l => l !== loc));
+                          }
+                        }}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs font-bold text-slate-700">{loc}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* RERA Filter Tabs */}
-          <div className="flex bg-slate-200/60 p-1 rounded-xl text-[11px] font-bold">
-            <button
-              onClick={() => setReraFilter("all")}
-              className={`px-3 py-1.5 rounded-lg transition shrink-0 ${
-                reraFilter === "all" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-850"
-              }`}
-            >
-              All Agents
-            </button>
-            <button
-              onClick={() => setReraFilter("rera")}
-              className={`px-3 py-1.5 rounded-lg transition shrink-0 ${
-                reraFilter === "rera" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-850"
-              }`}
-            >
-              RERA Approved
-            </button>
-          </div>
+            {/* RERA Filter Tabs */}
+            <div className="flex bg-slate-200/60 p-1 rounded-xl text-[11px] font-bold">
+              <button
+                onClick={() => setReraFilter("all")}
+                className={`px-3 py-1 rounded-lg transition shrink-0 ${
+                  reraFilter === "all" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-850"
+                }`}
+              >
+                All Agents
+              </button>
+              <button
+                onClick={() => setReraFilter("rera")}
+                className={`px-3 py-1 rounded-lg transition shrink-0 ${
+                  reraFilter === "rera" ? "bg-white text-indigo-650 shadow-sm" : "text-slate-500 hover:text-slate-850"
+                }`}
+              >
+                RERA Approved
+              </button>
+            </div>
 
-          <div className="text-slate-400 font-bold shrink-0 pl-1 self-center">
-            {filteredAgents.length} verified partner(s) found
+            <div className="text-slate-400 font-bold shrink-0 pl-1 self-center">
+              {filteredAgents.length} verified partner(s) found
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Loader */}
-      {loading && (
-        <div className="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider justify-center py-12">
-          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
-          <span>Loading partner list...</span>
-        </div>
-      )}
+      {/* Scrollable Agent List Container (Only this scrolls) */}
+      <div className="flex-1 overflow-y-auto min-h-0 pb-6 pr-1">
+        {/* Loader */}
+        {loading && (
+          <div className="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider justify-center py-12">
+            <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+            <span>Loading partner list...</span>
+          </div>
+        )}
 
-      {/* List of Agents */}
-      {!loading && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* List of Agents */}
+        {!loading && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {filteredAgents.length === 0 ? (
             <div className="bg-slate-50 border-slate-200 border-dashed rounded-2xl p-12 text-center text-slate-400 m-4">
               <Users className="w-10 h-10 mx-auto text-slate-300 mb-3" />
@@ -434,6 +439,7 @@ export default function AgentDirectory() {
           )}
         </div>
       )}
+      </div>
 
       <InviteChannelPartnerModal 
         isOpen={isInviteModalOpen} 
