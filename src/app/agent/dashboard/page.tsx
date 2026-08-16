@@ -43,6 +43,26 @@ interface WebinarItem {
   reward: string;
 }
 
+interface BuilderReward {
+  id: string;
+  builderName: string;
+  title: string;
+  type: "xp" | "voucher" | "commission" | "pass";
+  value: string;
+  points: number;
+  issuedAt: string;
+  status: "pending" | "claimed";
+}
+
+interface AttendedEvent {
+  id: string;
+  title: string;
+  builderName: string;
+  passcode: string;
+  attendedAt: string;
+  points: number;
+}
+
 export default function AgentDashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
@@ -51,8 +71,24 @@ export default function AgentDashboard() {
   const [loading, setLoading] = useState(true);
   const [matchNudge, setMatchNudge] = useState<any>(null);
   
-  // Mock CP Invitations
+  // Mock CP Invitations & Builder Rewards
   const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+  const [pendingRewards, setPendingRewards] = useState<BuilderReward[]>([]);
+
+  // Meeting Attendance Passcode & Attended Events History
+  const [attendedEvents, setAttendedEvents] = useState<AttendedEvent[]>([
+    {
+      id: "evt-sun078",
+      title: "Prestige Sunnyside Launch CP Meet",
+      builderName: "Prestige Group",
+      passcode: "SUN078",
+      attendedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+      points: 100
+    }
+  ]);
+  const [passcodeInput, setPasscodeInput] = useState("");
+  const [passcodeSuccessMsg, setPasscodeSuccessMsg] = useState("");
+  const [verifyingPasscode, setVerifyingPasscode] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -61,8 +97,120 @@ export default function AgentDashboard() {
         const parsed = JSON.parse(stored);
         setPendingInvites(parsed);
       } catch (e) {}
+
+      // Load attended events history from localStorage
+      const storedHistory = localStorage.getItem("agent_attended_events_history");
+      if (storedHistory) {
+        try {
+          const parsedHistory = JSON.parse(storedHistory);
+          if (Array.isArray(parsedHistory) && parsedHistory.length > 0) {
+            setAttendedEvents(parsedHistory);
+          }
+        } catch (e) {}
+      }
+
+      // Load pending builder rewards for agent
+      const storedRewards = localStorage.getItem("mock_agent_rewards");
+      if (storedRewards) {
+        try {
+          const parsed = JSON.parse(storedRewards);
+          if (Array.isArray(parsed)) {
+            setPendingRewards(parsed.filter((r: any) => r.status === "pending"));
+          }
+        } catch (e) {}
+      } else {
+        // Default sample reward on initial visit
+        const defaultRewards: BuilderReward[] = [
+          {
+            id: "reward-default-1",
+            builderName: "Prestige Group",
+            title: "+500 XP Followers Loyalty Bonus",
+            type: "xp",
+            value: "500 XP",
+            points: 500,
+            issuedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+            status: "pending"
+          }
+        ];
+        setPendingRewards(defaultRewards);
+        localStorage.setItem("mock_agent_rewards", JSON.stringify(defaultRewards));
+      }
     }
   }, []);
+
+  const handleSubmitPasscode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passcodeInput.trim()) return;
+
+    setVerifyingPasscode(true);
+    const code = passcodeInput.trim().toUpperCase();
+
+    let eventTitle = "CP Partner Webinar Meet";
+    let builderName = "Builder Partner";
+
+    if (code === "SUN078") {
+      eventTitle = "Prestige Sunnyside Launch CP Meet";
+      builderName = "Prestige Group";
+    } else if (code === "PRG902") {
+      eventTitle = "Prestige Park Grove Launch Meet";
+      builderName = "Prestige Group";
+    } else if (code === "LOD551") {
+      eventTitle = "Lodha Solitaire CP Webinar";
+      builderName = "Lodha Builders";
+    } else {
+      eventTitle = `${code.substring(0, 3)} CP Partner Meet`;
+    }
+
+    setTimeout(() => {
+      const newAttended: AttendedEvent = {
+        id: `att-${Date.now()}`,
+        title: eventTitle,
+        builderName: builderName,
+        passcode: code,
+        attendedAt: new Date().toISOString(),
+        points: 100
+      };
+
+      const updated = [newAttended, ...attendedEvents];
+      setAttendedEvents(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("agent_attended_events_history", JSON.stringify(updated));
+      }
+
+      if (profile) {
+        setProfile({ ...profile, points: (profile.points || 0) + 100 });
+      }
+
+      setVerifyingPasscode(false);
+      setPasscodeSuccessMsg(`🎉 Verified! Attendance confirmed for "${eventTitle}" (Code: ${code}). +100 XP added to your Wallet!`);
+      setPasscodeInput("");
+      setTimeout(() => setPasscodeSuccessMsg(""), 4500);
+    }, 500);
+  };
+
+  const handleClaimReward = (rewardId: string) => {
+    const target = pendingRewards.find(r => r.id === rewardId);
+    if (!target) return;
+
+    const ptsToAdd = target.points || 500;
+    if (profile) {
+      setProfile({ ...profile, points: (profile.points || 0) + ptsToAdd });
+    }
+
+    const stored = JSON.parse(localStorage.getItem("mock_agent_rewards") || "[]");
+    const updated = stored.map((r: any) => r.id === rewardId ? { ...r, status: "claimed" } : r);
+    localStorage.setItem("mock_agent_rewards", JSON.stringify(updated));
+
+    setPendingRewards(prev => prev.filter(r => r.id !== rewardId));
+    alert(`🎉 Congratulations! You claimed "${target.title}" (+${ptsToAdd} XP added to your Wallet).`);
+  };
+
+  const handleDeclineReward = (rewardId: string) => {
+    const stored = JSON.parse(localStorage.getItem("mock_agent_rewards") || "[]");
+    const updated = stored.filter((r: any) => r.id !== rewardId);
+    localStorage.setItem("mock_agent_rewards", JSON.stringify(updated));
+    setPendingRewards(prev => prev.filter(r => r.id !== rewardId));
+  };
 
   const handleAcceptInvite = (builderId: string) => {
     // 1. Remove from pending invites
@@ -70,13 +218,14 @@ export default function AgentDashboard() {
     setPendingInvites(updatedInvites);
     localStorage.setItem("mock_agent_invites", JSON.stringify(updatedInvites));
 
-    // 2. Set connected status
+    // 2. Set connected status & award +100 XP
     if (profile?.id) {
       const connections = JSON.parse(localStorage.getItem("mock_cp_connections") || "{}");
-      connections[profile.id] = "connected"; // Note: simple mock structure
+      connections[profile.id] = "connected";
       localStorage.setItem("mock_cp_connections", JSON.stringify(connections));
+      setProfile({ ...profile, points: (profile.points || 0) + 100 });
     }
-    alert("Invitation Accepted! You are now a Verified Channel Partner for this Builder.");
+    alert("🎉 FORMAL WELCOME NOTICE!\n\nThank you for accepting (YES) the Channel Partner & Event Launch Invitation.\n\n💰 +100 XP Bonus credited to your Wallet!\n🔑 Secret Meeting Code: SUN078\n\nWe look forward to seeing you at the launch event!");
   };
 
   const handleRejectInvite = (builderId: string) => {
@@ -90,6 +239,7 @@ export default function AgentDashboard() {
       delete connections[profile.id];
       localStorage.setItem("mock_cp_connections", JSON.stringify(connections));
     }
+    alert("🤖 FORMAL ACKNOWLEDGMENT NOTICE\n\nThank you for your response. We have recorded your choice (NO). We appreciate your time and hope to collaborate with you at our future project launches!");
   };
 
   useEffect(() => {
@@ -350,6 +500,76 @@ export default function AgentDashboard() {
                 </div>
               ))}
             </div>
+          {/* Meeting Attendance Verification & History */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Meeting Attendance Passcode</span>
+                </h3>
+                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                  Enter the 6-character code spoken by builder at the end of live CP webinars (e.g. SUN078).
+                </p>
+              </div>
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200 rounded-full">
+                +100 XP / Meeting
+              </span>
+            </div>
+
+            {/* Code Input Form */}
+            <form onSubmit={handleSubmitPasscode} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Enter passcode (e.g. SUN078)"
+                value={passcodeInput}
+                onChange={(e) => setPasscodeInput(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-3.5 py-2 text-xs font-bold uppercase tracking-wider outline-none text-slate-800"
+              />
+              <button
+                type="submit"
+                disabled={verifyingPasscode || !passcodeInput.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-sm transition shrink-0"
+              >
+                {verifyingPasscode ? "Verifying..." : "Confirm Attendance"}
+              </button>
+            </form>
+
+            {passcodeSuccessMsg && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold text-center">
+                {passcodeSuccessMsg}
+              </div>
+            )}
+
+            {/* Attended Events History List */}
+            <div className="space-y-2 pt-2">
+              <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Your Attended Meetings History ({attendedEvents.length})
+              </h4>
+
+              {attendedEvents.map((evt) => (
+                <div key={evt.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                      ✓
+                    </div>
+                    <div>
+                      <div className="font-extrabold text-slate-900">{evt.title}</div>
+                      <div className="text-[10px] text-slate-500 font-semibold">
+                        Host: <span className="text-slate-700 font-bold">{evt.builderName}</span> · Code: <span className="font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">{evt.passcode}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold">
+                      +{evt.points} XP
+                    </span>
+                    <div className="text-[9px] text-slate-400 mt-0.5">Attended</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -422,6 +642,63 @@ export default function AgentDashboard() {
             )}
           </div>
 
+          {/* Rewards from Builders Widget */}
+          <div className="bg-[#0f172a] text-white p-5 rounded-2xl shadow-xl space-y-4 border border-indigo-900/50 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none"></div>
+            
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center space-x-1.5">
+                <Gift className="w-4 h-4 text-amber-400 animate-bounce" />
+                <span>Rewards from Builders</span>
+              </h3>
+              {pendingRewards.length > 0 && (
+                <span className="px-2 py-0.5 bg-amber-500 text-slate-950 font-extrabold text-[9px] rounded-full animate-pulse">
+                  {pendingRewards.length} NEW
+                </span>
+              )}
+            </div>
+
+            {pendingRewards.length > 0 ? (
+              <div className="space-y-3">
+                {pendingRewards.map((reward) => (
+                  <div key={reward.id} className="p-3.5 bg-slate-800/90 border border-slate-700/80 rounded-xl space-y-2.5 text-xs">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider">
+                          {reward.builderName}
+                        </div>
+                        <div className="font-extrabold text-white text-xs mt-0.5">{reward.title}</div>
+                      </div>
+                      <span className="px-2 py-0.5 bg-amber-400/20 text-amber-300 font-extrabold text-[10px] rounded-md border border-amber-400/30">
+                        {reward.value}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button 
+                        onClick={() => handleClaimReward(reward.id)}
+                        className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[10px] rounded-lg transition flex items-center justify-center space-x-1 shadow-md shadow-amber-500/20"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Claim Reward</span>
+                      </button>
+                      <button 
+                        onClick={() => handleDeclineReward(reward.id)}
+                        className="w-full py-2 bg-slate-700/80 hover:bg-slate-700 text-slate-300 font-bold text-[10px] rounded-lg transition"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-4 text-center text-slate-400 font-semibold text-xs border border-dashed border-slate-800 rounded-xl">
+                No pending builder rewards.
+              </div>
+            )}
+          </div>
+
           {/* Builder Invitations Widget */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
@@ -475,6 +752,7 @@ export default function AgentDashboard() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

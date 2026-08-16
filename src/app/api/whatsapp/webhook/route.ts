@@ -335,6 +335,80 @@ export async function POST(req: NextRequest) {
       .eq("phone", formattedPhone)
       .maybeSingle();
 
+    // Handle Meeting Passcode Verification (e.g., SUN078, PRG902, LOD551, ATTEND SUN078)
+    const upperMsg = commandText.trim().toUpperCase();
+    const extractedPasscode = (upperMsg.match(/\b([A-Z]{3}\d{3}|\d{6}|SUN078|PRG902|LOD551)\b/i) || [])[1];
+
+    if (extractedPasscode) {
+      const codeToVerify = extractedPasscode.toUpperCase();
+      let eventTitle = "";
+      let eventId = "";
+
+      // 1. Query events for passcode match
+      const { data: matchedEvents } = await supabase.from("events").select("*");
+      if (matchedEvents) {
+        const found = matchedEvents.find((e: any) => 
+          e.attendance_code === codeToVerify || 
+          (e.title && e.title.substring(0, 3).toUpperCase() + "078" === codeToVerify)
+        );
+        if (found) {
+          eventTitle = found.title;
+          eventId = found.id;
+        }
+      }
+
+      // 2. Query campaigns for passcode match
+      if (!eventTitle) {
+        const { data: matchedCampaigns } = await supabase.from("campaigns").select("*");
+        if (matchedCampaigns) {
+          const found = matchedCampaigns.find((c: any) => 
+            c.attendance_code === codeToVerify || 
+            (c.name && c.name.substring(0, 3).toUpperCase() + "078" === codeToVerify)
+          );
+          if (found) {
+            eventTitle = found.name;
+            eventId = found.id;
+          }
+        }
+      }
+
+      // 3. Fallback demo passcodes
+      if (!eventTitle) {
+        if (codeToVerify === "SUN078") {
+          eventTitle = "Prestige Sunnyside Launch CP Meet";
+          eventId = "evt-sun078";
+        } else if (codeToVerify === "PRG902") {
+          eventTitle = "Prestige Park Grove Launch Meet";
+          eventId = "evt-prg902";
+        } else if (codeToVerify === "LOD551") {
+          eventTitle = "Lodha Solitaire CP Webinar";
+          eventId = "evt-lod551";
+        }
+      }
+
+      if (eventTitle) {
+        // Register attendance in database / rsvps
+        if (profile) {
+          await supabase.from("rsvps").upsert({
+            agent_id: profile.id,
+            event_id: eventId,
+            attended: true,
+            attended_at: new Date().toISOString(),
+            attendance_code: codeToVerify
+          }, { onConflict: "agent_id,event_id" });
+
+          // Credit +100 XP to agent
+          await supabase.from("profiles").update({
+            points: (profile.points || 0) + 100
+          }).eq("id", profile.id);
+        }
+
+        const replyMsg = `🎉 *Attendance Confirmed!*\n\nYou have been marked *PRESENT* for:\n📌 *${eventTitle}*\n🔑 Passcode: *${codeToVerify}*\n\n💰 *+100 XP Bonus* has been credited to your Wallet! Check your Agent Dashboard under *Attended Events History* to view your attendance record.`;
+        await sendOutboundReply(replyMsg);
+        return NextResponse.json({ status: "success", reply: replyMsg });
+      }
+    }
+
     // Handle Media Uploads (Documents/Images)
     if (msgType === "image" || msgType === "document") {
       if (!profile) {
@@ -391,7 +465,7 @@ export async function POST(req: NextRequest) {
         // Just process the first pending invitation
         const invite = invites[0];
         
-        if (commandLower === "yes") {
+        if (commandLower === "yes" || commandLower === "1" || commandLower.includes("accept")) {
           await supabase
             .from("channel_partners")
             .update({ status: "connected" })
@@ -404,7 +478,7 @@ export async function POST(req: NextRequest) {
             .update({ points: (profile.points || 0) + 100 })
             .eq("id", profile.id);
 
-          const replyMsg = `🎉 *Awesome!*\n\nYou are now an official Channel Partner.\n\n💰 We have credited *100 bonus credits* to your account!`;
+          const replyMsg = `🎉 *Formal Welcome & Attendance Confirmed!*\n\nThank you for accepting the Channel Partner & Event Launch Invitation. We are honored to partner with you.\n\n💰 *+100 XP Bonus* has been credited to your Wallet!\n🔑 *Secret Meeting Code:* SUN078 (Enter this code at live meet end to claim attendance).\n\nWe look forward to seeing you at the launch event!`;
           await sendOutboundReply(replyMsg);
           return NextResponse.json({ status: "success", reply: replyMsg });
         } else {
@@ -415,13 +489,26 @@ export async function POST(req: NextRequest) {
             .eq("agent_id", profile.id)
             .eq("builder_id", invite.builder_id);
             
-          const replyMsg = `🤖 *Understood.*\n\nYou have declined the Channel Partner invitation. Let us know if you change your mind in the future.`;
+          const replyMsg = `🤖 *Formal Acknowledgment*\n\nThank you for your response. We have recorded your choice. We appreciate you letting us know and hope to collaborate with you at our future project launches and Channel Partner meets!`;
           await sendOutboundReply(replyMsg);
           return NextResponse.json({ status: "success", reply: replyMsg });
         }
       } else {
-        // If they just typed yes or no but have no pending invites, maybe they were answering something else?
-        // Let's just ignore or fall through. If they explicitly sent "aa yes", it falls through.
+        // If no pending CP invite, check if they are answering an event RSVP poll YES or NO
+        if (commandLower === "yes" || commandLower === "1" || commandLower.includes("accept")) {
+          await supabase
+            .from("profiles")
+            .update({ points: (profile.points || 0) + 100 })
+            .eq("id", profile.id);
+
+          const replyMsg = `🎉 *Formal Welcome & Attendance Confirmed!*\n\nThank you for confirming *YES* to the Launch Invitation.\n\n💰 *+100 XP Bonus* credited to your Wallet!\n🔑 *Meeting Passcode:* SUN078\n\nWe look forward to seeing you at the live launch meet!`;
+          await sendOutboundReply(replyMsg);
+          return NextResponse.json({ status: "success", reply: replyMsg });
+        } else if (commandLower === "no" || commandLower === "2" || commandLower.includes("decline")) {
+          const replyMsg = `🤖 *Formal Acknowledgment*\n\nThank you for your response. We have recorded your decision (*NO*). We appreciate your time and hope to see you at our next project launch!`;
+          await sendOutboundReply(replyMsg);
+          return NextResponse.json({ status: "success", reply: replyMsg });
+        }
       }
     }
 

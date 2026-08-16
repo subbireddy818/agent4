@@ -197,6 +197,20 @@ export default function BuilderFollowersPage() {
       setIssuedBonuses(updated);
       if (typeof window !== "undefined") {
         localStorage.setItem("builder_issued_follower_bonuses", JSON.stringify(updated));
+
+        // Push new reward directly to mock_agent_rewards so Agent Dashboard receives it
+        const existingRewards = JSON.parse(localStorage.getItem("mock_agent_rewards") || "[]");
+        const newRewards = newRecords.map(rec => ({
+          id: rec.id,
+          builderName: "Prestige Group",
+          title: rec.bonus_title,
+          type: rec.bonus_type,
+          value: rec.value,
+          points: rec.bonus_type === "xp" ? 500 : rec.bonus_type === "voucher" ? 1000 : 250,
+          issuedAt: rec.issued_at,
+          status: "pending"
+        }));
+        localStorage.setItem("mock_agent_rewards", JSON.stringify([...newRewards, ...existingRewards]));
       }
       setSendingBonus(false);
       setBonusSuccessMsg(`🎉 Successfully distributed "${customBonusTitle}" to ${targetName} (${targetAgentsCount} agent${targetAgentsCount > 1 ? "s" : ""})!`);

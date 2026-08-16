@@ -186,19 +186,29 @@ export default function BuilderEventsHistory() {
                     {event.description && (
                       <p className="text-xs text-slate-500 mt-2 line-clamp-2">{event.description}</p>
                     )}
+                    <div className="pt-2 flex items-center space-x-2">
+                      <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 font-extrabold text-[10px] rounded-lg flex items-center space-x-1">
+                        <span>🔑 Meeting Code:</span>
+                        <span className="text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded font-black tracking-wider">
+                          {(event as any).attendance_code || (event.title ? event.title.substring(0, 3).toUpperCase() + "078" : "SUN078")}
+                        </span>
+                      </span>
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
                       {event.event_type || "Event"}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-2">{formatDate(event.created_at)}</p>
-                    <button
-                      onClick={() => openFollowersModal(event.id, "event", event.title)}
-                      className="mt-3 px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 font-bold text-[10px] rounded-lg transition uppercase tracking-wider flex items-center space-x-1 ml-auto"
-                    >
-                      <Users className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Followers</span>
-                    </button>
+                    <div className="flex items-center space-x-2 mt-3 justify-end">
+                      <button
+                        onClick={() => openFollowersModal(event.id, "event", event.title)}
+                        className="px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 font-bold text-[10px] rounded-lg transition uppercase tracking-wider flex items-center space-x-1"
+                      >
+                        <Users className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Attendance Roster</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -222,6 +232,14 @@ export default function BuilderEventsHistory() {
                   <div className="space-y-1">
                     <h3 className="text-sm font-extrabold text-slate-900">{campaign.name}</h3>
                     <p className="text-xs text-slate-500">{campaign.audience_segment}</p>
+                    <div className="pt-2 flex items-center space-x-2">
+                      <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 font-extrabold text-[10px] rounded-lg flex items-center space-x-1">
+                        <span>🔑 Attendance Passcode:</span>
+                        <span className="text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded font-black tracking-wider">
+                          {(campaign as any).attendance_code || (campaign.name ? campaign.name.substring(0, 3).toUpperCase() + "078" : "SUN078")}
+                        </span>
+                      </span>
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="flex items-center space-x-2">
@@ -237,7 +255,7 @@ export default function BuilderEventsHistory() {
                       className="mt-3 px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 font-bold text-[10px] rounded-lg transition uppercase tracking-wider flex items-center space-x-1 ml-auto"
                     >
                       <Users className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Followers</span>
+                      <span>Attended Roster</span>
                     </button>
                   </div>
                 </div>
