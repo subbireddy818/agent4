@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
        parsedDate = isoDate;
     } else {
        // Fallback to NLP parsing, forcing IST timezone (+330 mins)
-       parsedDate = chrono.parseDate(timeStr, new Date(), { timezone: 330 });
+       parsedDate = chrono.parseDate(timeStr, new Date(), { timezone: 330 } as any);
     }
 
     if (parsedDate && parsedDate <= now) {

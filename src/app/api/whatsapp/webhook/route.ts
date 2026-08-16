@@ -449,7 +449,7 @@ export async function POST(req: NextRequest) {
 
         let interestedArr: string[] = [];
         if (regInterested) {
-           interestedArr = regInterested.split(",").map(i => i.trim());
+           interestedArr = regInterested.split(",").map((i: string) => i.trim());
         }
 
         const cleanInputPhone = regPhone.replace(/\D/g, "");
@@ -1338,7 +1338,7 @@ export async function POST(req: NextRequest) {
 
       if (builderDocs && builderDocs.length > 0) {
         replyMsg += `*Builder Brochures & Shared Docs:*\n`;
-        builderDocs.forEach((d, idx) => {
+        builderDocs.forEach((d: any, idx: number) => {
           const projName = d.projects?.name ? ` - ${d.projects.name}` : "";
           replyMsg += `${idx + 1}. 🏢 *${d.name}*${projName}\n   🔗 Link: ${d.url}\n\n`;
         });
