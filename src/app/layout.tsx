@@ -26,6 +26,40 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://rayulumukku.com/#person",
+      "name": "Rayulu Mukku",
+      "url": "https://rayulumukku.com/",
+      "sameAs": [
+        "https://github.com/rayulumukku",
+        "https://gitlab.com/RayuluMukku",
+        "https://www.linkedin.com/in/rayulumukku/",
+      ],
+      "owns": {
+        "@id": "https://agents.online/#app",
+      },
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://agents.online/#app",
+      "name": "Agents Online",
+      "url": "https://agents.online/",
+      "description":
+        "A real estate platform for discovering and exploring properties for sale and rent.",
+      "applicationCategory": "RealEstateApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "creator": {
+        "@id": "https://rayulumukku.com/#person",
+      },
+    },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,7 +70,15 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
