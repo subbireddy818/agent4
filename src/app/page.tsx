@@ -522,6 +522,25 @@ function LandingContent() {
       <footer className="bg-white py-8 px-6 border-t border-slate-200/80 text-center text-xs text-[#64748b]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <div>© 2026 AgentsApp · Confidential and Proprietary</div>
+          <div className="font-medium text-slate-500">
+            <span>Developer by </span>
+            <a
+              href="https://www.linkedin.com/in/subbireddypeddinti4131/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-[#eab308] hover:text-[#ca8a04] hover:underline transition-colors"
+            >
+              Sun
+            </a>
+            <a
+              href="https://rayulumukku.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-[#f97316] hover:text-[#ea580c] hover:underline transition-colors"
+            >
+              Rays
+            </a>
+          </div>
           <div className="flex space-x-6 font-semibold">
             <a href="mailto:hello@agentsapp.in" className="hover:text-[#16c47f] transition">hello@agentsapp.in</a>
             <span>+91 98765 43210</span>
