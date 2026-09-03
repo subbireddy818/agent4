@@ -423,10 +423,14 @@ export default function AgentDirectory() {
                             </button>
                           ) : connections[agent.id] === "invited" ? (
                             <button 
-                              disabled
-                              className="px-4 py-2 bg-slate-100 text-slate-400 font-bold rounded-xl text-xs cursor-not-allowed"
+                              onClick={() => {
+                                // We can just trigger the modal, but optimally we should have a standalone resend function.
+                                // For now, we'll just open the modal. Since the user asked to "send invite to the pending invites again".
+                                setIsInviteModalOpen(true);
+                              }}
+                              className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-xl text-xs transition"
                             >
-                              Invitation Pending
+                              Resend Invitation
                             </button>
                           ) : null}
                         </div>

@@ -31,10 +31,20 @@ export default function WhatsAppSimulationWidget() {
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll chat to bottom
+  // Auto-scroll chat to bottom smartly
+  const prevHistoryLength = useRef(0);
   useEffect(() => {
     if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+      const { scrollTop, scrollHeight, clientHeight } = chatBodyRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+      
+      // Scroll to bottom if we are just opening the modal, or if a new message arrived AND we are near the bottom
+      if (chatHistory.length > prevHistoryLength.current || prevHistoryLength.current === 0) {
+        if (isNearBottom || prevHistoryLength.current === 0) {
+          chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+        }
+      }
+      prevHistoryLength.current = chatHistory.length;
     }
   }, [chatHistory, showBotModal]);
 
@@ -258,7 +268,7 @@ export default function WhatsAppSimulationWidget() {
 
       {/* WhatsApp Chat Simulation Widget */}
       {showBotModal && (
-        <div className="fixed bottom-24 lg:bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-32px)] h-[500px] max-h-[calc(100vh-140px)] bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-24 lg:bottom-24 right-6 z-50 w-[420px] max-w-[calc(100vw-32px)] h-[600px] max-h-[calc(100vh-140px)] bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 duration-300">
           {/* Header */}
           <div className="bg-[#075e54] text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center space-x-2">
@@ -282,9 +292,9 @@ export default function WhatsAppSimulationWidget() {
           </div>
 
           {/* Chat Body */}
-          <div ref={chatBodyRef} className="flex-1 p-3 overflow-y-auto bg-[#efeae2] text-[11px] space-y-2">
+          <div ref={chatBodyRef} className="flex-1 p-3 overflow-y-auto bg-[#efeae2] text-sm space-y-2">
             {chatHistory.map((msg, i) => {
-              const isBot = msg.startsWith("🤖");
+              const isBot = msg.startsWith("🤖") || msg.startsWith("\\uD83E\\uDD16") || msg.startsWith("ðŸ¤–") || msg.startsWith("??"); // For robustness
               return (
                 <div key={i} className={`flex flex-col ${isBot ? "items-start" : "items-end"}`}>
                   <div className={`max-w-[85%] rounded-lg p-2.5 shadow-sm whitespace-pre-line leading-relaxed ${
@@ -302,22 +312,22 @@ export default function WhatsAppSimulationWidget() {
                   <div className="font-bold text-xs text-[#25d366] pb-1 border-b border-slate-100">Agent Registration</div>
                   
                   <div className="w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Full Name</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Full Name</label>
                     <input type="text" placeholder="e.g. Amit Sharma" value={regName} onChange={e => setRegName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   </div>
                   
                   <div className="w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Phone Number</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Phone Number</label>
                     <input type="text" placeholder="e.g. 9876543210" value={regPhone} onChange={e => setRegPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   </div>
                   
                   <div className="w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Agency Name</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Agency Name</label>
                     <input type="text" placeholder="e.g. Sunrise Realty" value={regAgency} onChange={e => setRegAgency(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   </div>
 
                   <div className="relative w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Location(s)</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Location(s)</label>
                     <button
                       type="button"
                       onClick={() => {
@@ -331,7 +341,7 @@ export default function WhatsAppSimulationWidget() {
                     {isLocDropdownOpen && (
                       <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-32 overflow-y-auto">
                         {HYDERABAD_LOCATIONS.map(loc => (
-                          <label key={loc} className="flex items-center px-2 py-1.5 text-[11px] hover:bg-slate-50 cursor-pointer">
+                          <label key={loc} className="flex items-center px-2 py-1.5 text-sm hover:bg-slate-50 cursor-pointer">
                             <input
                               type="checkbox"
                               className="mr-2"
@@ -351,7 +361,7 @@ export default function WhatsAppSimulationWidget() {
                     )}
                   </div>
                   <div className="relative w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Property Types (Interested In)</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Property Types (Interested In)</label>
                     <button
                       type="button"
                       onClick={() => {
@@ -365,7 +375,7 @@ export default function WhatsAppSimulationWidget() {
                     {isPropDropdownOpen && (
                       <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-32 overflow-y-auto">
                         {["Apartment", "Villa", "Plot", "Commercial"].map(prop => (
-                          <label key={prop} className="flex items-center px-2 py-1.5 text-[11px] hover:bg-slate-50 cursor-pointer">
+                          <label key={prop} className="flex items-center px-2 py-1.5 text-sm hover:bg-slate-50 cursor-pointer">
                             <input
                               type="checkbox"
                               className="mr-2"
@@ -414,22 +424,22 @@ export default function WhatsAppSimulationWidget() {
                   <div className="font-bold text-xs text-[#25d366] pb-1 border-b border-slate-100">Add New Lead</div>
                   
                   <div className="w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Lead Name</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Lead Name</label>
                     <input type="text" placeholder="e.g. Ravi" value={addLeadName} onChange={e => setAddLeadName(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   </div>
                   
                   <div className="w-full">
-                    <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Phone Number</label>
+                    <label className="text-xs text-slate-500 font-bold mb-0.5 block">Phone Number</label>
                     <input type="text" placeholder="e.g. 9876543210" value={addLeadPhone} onChange={e => setAddLeadPhone(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                   </div>
                   
                   <div className="flex space-x-2 w-full">
                     <div className="flex-1">
-                      <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Location</label>
+                      <label className="text-xs text-slate-500 font-bold mb-0.5 block">Location</label>
                       <input type="text" placeholder="e.g. Kokapet" value={addLeadLocation} onChange={e => setAddLeadLocation(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                     </div>
                     <div className="flex-1">
-                      <label className="text-[10px] text-slate-500 font-bold mb-0.5 block">Budget</label>
+                      <label className="text-xs text-slate-500 font-bold mb-0.5 block">Budget</label>
                       <input type="text" placeholder="e.g. 2Cr" value={addLeadBudget} onChange={e => setAddLeadBudget(e.target.value)} className="w-full border border-slate-200 rounded-md p-1.5 text-xs outline-none focus:border-[#25d366]" />
                     </div>
                   </div>
@@ -473,9 +483,10 @@ export default function WhatsAppSimulationWidget() {
           <div className="bg-[#efeae2] px-3 pb-2.5 flex space-x-1.5 overflow-x-auto shrink-0 scrollbar-thin select-none">
             {[
               { label: "ℹ️ Help", cmd: "help", autoSubmit: true },
-              { label: "🆕 Add Lead", cmd: "add a client ", autoSubmit: false },
-              { label: "🔍 Search Properties", cmd: "search for a 3bhk flat in kompally", autoSubmit: true },
-              { label: "🏢 Search Projects", cmd: "find projects by myhome", autoSubmit: true },
+              { label: "👤 Add Lead", cmd: "add a client ", autoSubmit: false },
+              { label: "🔄 Update Lead", cmd: "update lead ", autoSubmit: false },
+              { label: "📍 Search by Area", cmd: "search area ", autoSubmit: false },
+              { label: "🏗️ Search Projects", cmd: "find projects by ", autoSubmit: false },
               { label: "⏰ Reminders", cmd: "reminders", autoSubmit: true },
               { label: "⏰ Set Reminder", cmd: "Remind me to call  time ", autoSubmit: false },
               { label: "📁 Get Brochure", cmd: "Send ProjectName brochure", autoSubmit: false },
@@ -573,7 +584,7 @@ export default function WhatsAppSimulationWidget() {
             <button 
               type="button" 
               onClick={() => setShowDocsMenu(!showDocsMenu)}
-              className="px-3 h-8 rounded-full bg-white text-slate-600 hover:text-slate-800 text-[11px] font-bold shrink-0 shadow-sm transition border border-slate-200"
+              className="px-3 h-8 rounded-full bg-white text-slate-600 hover:text-slate-800 text-sm font-bold shrink-0 shadow-sm transition border border-slate-200"
             >
               Documents
             </button>
@@ -611,7 +622,7 @@ export default function WhatsAppSimulationWidget() {
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onClick={() => setShowDocsMenu(false)}
-              className="flex-1 bg-white border border-slate-200 rounded-full py-2 px-3 text-[11px] text-slate-800 outline-none focus:border-[#25d366] transition shadow-inner"
+              className="flex-1 bg-white border border-slate-200 rounded-full py-2 px-3 text-sm text-slate-800 outline-none focus:border-[#25d366] transition shadow-inner"
             />
             <button 
               id="chatbot-submit-btn"

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { launchCampaignAction } from "./actions";
+import { getBuilderConnections } from "../agents/actions";
 import { HYDERABAD_LOCATIONS } from "@/lib/hyderabadLocations";
 import { supabase } from "@/lib/supabase";
 
@@ -31,7 +32,7 @@ export default function CampaignBuilder() {
   const [estimatedReach, setEstimatedReach] = useState(0);
 
   // Audience filters options from schema spec
-  const [recipientFilter, setRecipientFilter] = useState<"all" | "verified" | "rera">("all");
+  const [recipientFilter, setRecipientFilter] = useState<"all" | "verified" | "rera" | "channel_partners">("all");
   const [interestedPropertyTarget, setInterestedPropertyTarget] = useState("All");
 
   useEffect(() => {
@@ -49,6 +50,30 @@ export default function CampaignBuilder() {
         query = query.eq("status", "approved");
       } else if (recipientFilter === "rera") {
         query = query.eq("is_rera_approved", true);
+      } else if (recipientFilter === "channel_partners") {
+        const phone = typeof window !== "undefined" ? localStorage.getItem("agentsapp_logged_in_phone") : null;
+        if (phone) {
+          // Normalize phone
+          const digits = phone.replace(/\D/g, "");
+          const last10 = digits.slice(-10);
+          const formattedPhone = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+          
+          const res = await getBuilderConnections(formattedPhone);
+          if (res.success && res.connections) {
+            const cpIds = Object.keys(res.connections).filter(id => res.connections![id] === "connected");
+            if (cpIds.length === 0) {
+              setEstimatedReach(0);
+              return;
+            }
+            query = query.in("id", cpIds);
+          } else {
+            setEstimatedReach(0);
+            return;
+          }
+        } else {
+          setEstimatedReach(0);
+          return;
+        }
       }
 
       if (selectedLocations.length > 0) {
@@ -91,7 +116,9 @@ export default function CampaignBuilder() {
     setSending(true);
     
     const phone = localStorage.getItem("agentsapp_logged_in_phone") || "";
-    const filterName = recipientFilter === "all" ? "All Agents" : recipientFilter === "verified" ? "Verified Only" : "RERA Only";
+    const filterName = recipientFilter === "all" ? "All Agents" : 
+      recipientFilter === "verified" ? "Verified Only" : 
+      recipientFilter === "channel_partners" ? "My Channel Partners" : "RERA Only";
     const propertyTypeName = interestedPropertyTarget !== "All" ? `${interestedPropertyTarget} Only` : "All Types";
     const audienceStr = selectedLocations.length > 0 
       ? `Locations: ${selectedLocations.join(", ")} - ${filterName} - ${propertyTypeName}`
@@ -268,6 +295,7 @@ export default function CampaignBuilder() {
                     className="w-full bg-slate-50 border border-slate-200 focus:border-[#25d366] rounded-xl py-2.5 px-3 text-slate-800 outline-none text-xs font-semibold transition"
                   >
                     <option value="all">To All Agents</option>
+                    <option value="channel_partners">My Channel Partners</option>
                     <option value="verified">Only Verified Agents</option>
                     <option value="rera">RERA Approved Agents</option>
                   </select>

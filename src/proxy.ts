@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { sessionCookieName, verifySession } from "@/lib/session";
 
 // -----------------------------------------------------------------------------
-// Route protection (Next.js 16 "proxy" — formerly "middleware").
+// Route protection (Next.js 16 "proxy" â€” formerly "middleware").
 //
 // Anything under /agent, /builder or /admin requires a valid session cookie.
 // Unauthenticated requests are redirected to /auth/login with the original
-// URL preserved as ?next=… so we can bounce back after login.
+// URL preserved as ?next=â€¦ so we can bounce back after login.
 //
 // Roles are enforced loosely:
-//   - /admin/*      → admin | verification | operations
-//   - /builder/*    → builder
-//   - /agent/*      → agent
+//   - /admin/*      â†’ admin | verification | operations
+//   - /builder/*    â†’ builder
+//   - /agent/*      â†’ agent
 // If a user with a different role lands on a protected section we redirect
 // to their own dashboard rather than showing a confusing 403.
 // -----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ function isAllowed(role: string, pathname: string): boolean {
   return true;
 }
 
-export async function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) { console.log("PROXY:", req.method, req.nextUrl.pathname);
   const { pathname, search } = req.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));

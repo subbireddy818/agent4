@@ -14,12 +14,12 @@ import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
  * "sha256=<hex>". We compare with timing-safe equality.
  *
  * If WHATSAPP_APP_SECRET is not set we treat verification as disabled and
- * return true — this keeps local dev and the GallaBox/simulator paths
+ * return true â€” this keeps local dev and the GallaBox/simulator paths
  * working without extra config. In production, set the secret.
  */
 function verifyMetaSignature(rawBody: string, signatureHeader: string | null): boolean {
   const secret = process.env.WHATSAPP_APP_SECRET;
-  if (!secret) return true; // verification disabled — see note above
+  if (!secret) return true; // verification disabled â€” see note above
   if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
 
   const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
@@ -96,14 +96,14 @@ export async function GET(req: NextRequest) {
 }
 
 // POST handler: Receives incoming chat prompts from agents (Meta, GallaBox, or Simulator)
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED");
   let fromPhoneRaw = "";
   // Read the raw body once, so we can both verify the signature and parse it.
   const rawBody = await req.text();
   const signatureHeader = req.headers.get("x-hub-signature-256");
 
   // Reject Meta-style payloads with bad signatures. GallaBox and the local
-  // simulator do not send this header — when WHATSAPP_APP_SECRET is unset
+  // simulator do not send this header â€” when WHATSAPP_APP_SECRET is unset
   // we accept everything (see verifyMetaSignature).
   if (signatureHeader && !verifyMetaSignature(rawBody, signatureHeader)) {
     console.warn("Rejected WhatsApp webhook: invalid x-hub-signature-256");
@@ -403,7 +403,7 @@ export async function POST(req: NextRequest) {
           }).eq("id", profile.id);
         }
 
-        const replyMsg = `🎉 *Attendance Confirmed!*\n\nYou have been marked *PRESENT* for:\n📌 *${eventTitle}*\n🔑 Passcode: *${codeToVerify}*\n\n💰 *+100 XP Bonus* has been credited to your Wallet! Check your Agent Dashboard under *Attended Events History* to view your attendance record.`;
+        const replyMsg = `Ž‰ *Attendance Confirmed!*\n\nYou have been marked *PRESENT* for:\n📈Œ *${eventTitle}*\n🔍‘ Passcode: *${codeToVerify}*\n\n’° *+100 XP Bonus* has been credited to your Wallet! Check your Agent Dashboard under *Attended Events History* to view your attendance record.`;
         await sendOutboundReply(replyMsg);
         return NextResponse.json({ status: "success", reply: replyMsg });
       }
@@ -412,7 +412,7 @@ export async function POST(req: NextRequest) {
     // Handle Media Uploads (Documents/Images)
     if (msgType === "image" || msgType === "document") {
       if (!profile) {
-        await sendOutboundReply(`🤖 Bot: We received a file, but your phone number is not registered. Please register first by typing *aa register [Name]*`);
+        await sendOutboundReply(`\uD83E\uDD16 Bot: We received a file, but your phone number is not registered. Please register first by typing *aa register [Name]*`);
         return NextResponse.json({ status: "success", reply: "Unregistered user uploaded file" });
       }
 
@@ -426,8 +426,8 @@ export async function POST(req: NextRequest) {
           status: "pending"
         }]);
         await supabase.from("profiles").update({ status: "docs_uploaded" }).eq("id", profile.id);
-        const replyMsg = `🤖 Bot: 📄 *Verification File Received!*\nThank you for uploading your document. Our admin team will review it shortly. Your status is now *Docs Uploaded*.`;
-        await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
+        const replyMsg = `\uD83E\uDD16 Bot: 📈„ *Verification File Received!*\nThank you for uploading your document. Our admin team will review it shortly. Your status is now *Docs Uploaded*.`;
+        await sendOutboundReply(replyMsg.replace(/\n/g, "\n"));
         return NextResponse.json({ status: "success", reply: replyMsg });
       }
 
@@ -443,12 +443,12 @@ export async function POST(req: NextRequest) {
 
       if (insertError) {
         console.error("Failed to insert document:", insertError);
-        await sendOutboundReply(`🤖 Bot: ❌ Failed to save your document: ${insertError.message}`);
+        await sendOutboundReply(`\uD83E\uDD16 Bot: âŒ Failed to save your document: ${insertError.message}`);
         return NextResponse.json({ status: "error", reply: "Insert failed" });
       }
 
-      const replyMsg = `🤖 Bot: 📄 *File Received!*\nWe've securely saved your document to your "My Documents" vault.`;
-      await sendOutboundReply(replyMsg.replace(/\\n/g, "\n"));
+      const replyMsg = `\uD83E\uDD16 Bot: 📈„ *File Received!*\nWe've securely saved your document to your "My Documents" vault.`;
+      await sendOutboundReply(replyMsg.replace(/\n/g, "\n"));
       return NextResponse.json({ status: "success", reply: replyMsg });
     }
 
@@ -478,7 +478,7 @@ export async function POST(req: NextRequest) {
             .update({ points: (profile.points || 0) + 100 })
             .eq("id", profile.id);
 
-          const replyMsg = `🎉 *Formal Welcome & Attendance Confirmed!*\n\nThank you for accepting the Channel Partner & Event Launch Invitation. We are honored to partner with you.\n\n💰 *+100 XP Bonus* has been credited to your Wallet!\n🔑 *Secret Meeting Code:* SUN078 (Enter this code at live meet end to claim attendance).\n\nWe look forward to seeing you at the launch event!`;
+          const replyMsg = `Ž‰ *Formal Welcome & Attendance Confirmed!*\n\nThank you for accepting the Channel Partner & Event Launch Invitation. We are honored to partner with you.\n\n’° *+100 XP Bonus* has been credited to your Wallet!\n🔍‘ *Secret Meeting Code:* SUN078 (Enter this code at live meet end to claim attendance).\n\nWe look forward to seeing you at the launch event!`;
           await sendOutboundReply(replyMsg);
           return NextResponse.json({ status: "success", reply: replyMsg });
         } else {
@@ -489,7 +489,7 @@ export async function POST(req: NextRequest) {
             .eq("agent_id", profile.id)
             .eq("builder_id", invite.builder_id);
             
-          const replyMsg = `🤖 *Formal Acknowledgment*\n\nThank you for your response. We have recorded your choice. We appreciate you letting us know and hope to collaborate with you at our future project launches and Channel Partner meets!`;
+          const replyMsg = `\uD83E\uDD16 *Formal Acknowledgment*\n\nThank you for your response. We have recorded your choice. We appreciate you letting us know and hope to collaborate with you at our future project launches and Channel Partner meets!`;
           await sendOutboundReply(replyMsg);
           return NextResponse.json({ status: "success", reply: replyMsg });
         }
@@ -501,11 +501,11 @@ export async function POST(req: NextRequest) {
             .update({ points: (profile.points || 0) + 100 })
             .eq("id", profile.id);
 
-          const replyMsg = `🎉 *Formal Welcome & Attendance Confirmed!*\n\nThank you for confirming *YES* to the Launch Invitation.\n\n💰 *+100 XP Bonus* credited to your Wallet!\n🔑 *Meeting Passcode:* SUN078\n\nWe look forward to seeing you at the live launch meet!`;
+          const replyMsg = `Ž‰ *Formal Welcome & Attendance Confirmed!*\n\nThank you for confirming *YES* to the Launch Invitation.\n\n’° *+100 XP Bonus* credited to your Wallet!\n🔍‘ *Meeting Passcode:* SUN078\n\nWe look forward to seeing you at the live launch meet!`;
           await sendOutboundReply(replyMsg);
           return NextResponse.json({ status: "success", reply: replyMsg });
         } else if (commandLower === "no" || commandLower === "2" || commandLower.includes("decline")) {
-          const replyMsg = `🤖 *Formal Acknowledgment*\n\nThank you for your response. We have recorded your decision (*NO*). We appreciate your time and hope to see you at our next project launch!`;
+          const replyMsg = `\uD83E\uDD16 *Formal Acknowledgment*\n\nThank you for your response. We have recorded your decision (*NO*). We appreciate your time and hope to see you at our next project launch!`;
           await sendOutboundReply(replyMsg);
           return NextResponse.json({ status: "success", reply: replyMsg });
         }
@@ -581,18 +581,18 @@ export async function POST(req: NextRequest) {
 
         if (dbError) {
           console.error("Failed to register agent via WhatsApp:", dbError);
-          const replyErr = `🤖 Bot: ❌ Failed to register/update: ${dbError.message}`;
+          const replyErr = `\uD83E\uDD16 Bot: âŒ Failed to register/update: ${dbError.message}`;
           await sendOutboundReply(replyErr);
           return NextResponse.json({ status: "error", reply: replyErr });
         } else {
-          const locText = regLocation ? `\n📍 Location: *${regLocation}*` : "";
-          const intText = regInterested ? `\n🏡 Interested: *${regInterested}*` : "";
-          const replyOk = `🎉 *Registration ${profile ? "Updated" : "Successful"}!*\n\n👤 Name: *${regName}*\n🏢 Agency: *${regAgency}*\n📞 Phone: *${finalPhoneForDb}*${locText}${intText}\n💰 Welcome Reward: *+500 XP*\n\n⚠️ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
+          const locText = regLocation ? `\n📈 Location: *${regLocation}*` : "";
+          const intText = regInterested ? `\n¡ Interested: *${regInterested}*` : "";
+          const replyOk = `Ž‰ *Registration ${profile ? "Updated" : "Successful"}!*\n\n👤 Name: *${regName}*\n¢ Agency: *${regAgency}*\n📈ž Phone: *${finalPhoneForDb}*${locText}${intText}\n’° Welcome Reward: *+500 XP*\n\nâš ï¸ *Action Required:*\nPlease reply to this message with your *RERA Document, Aadhar, and PAN* to get verified.\n\nYour account is currently *pending approval* by an admin.`;
           await sendOutboundReply(replyOk);
           return NextResponse.json({ status: "success", reply: replyOk });
         }
       } else {
-        const replyFormat = `🤖 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register Your Name phone 9999999999 agency Agency Name location Your City interested in Property Types"_`;
+        const replyFormat = `\uD83E\uDD16 *AgentsApp Onboarding*:\n\nTo register as a Channel Partner directly on WhatsApp, please reply in this format:\n\n_"aa Register Your Name phone 9999999999 agency Agency Name location Your City interested in Property Types"_`;
         await sendOutboundReply(replyFormat);
         return NextResponse.json({ status: "success", reply: replyFormat });
       }
@@ -600,7 +600,7 @@ export async function POST(req: NextRequest) {
 
     if (!profile) {
       // If not a registration command, ask them to register
-      const replyRegPrompt = `🤖 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register Your Name phone 9999999999 agency Your Agency Name"_`;
+      const replyRegPrompt = `\uD83E\uDD16 *Welcome to AgentsApp!*\n\nIt looks like your phone number is not registered yet as a Channel Partner.\n\nTo create your account instantly on WhatsApp, please reply with:\n\n_"aa Register Your Name phone 9999999999 agency Your Agency Name"_`;
       await sendOutboundReply(replyRegPrompt);
       return NextResponse.json({ status: "success", reply: replyRegPrompt });
     }
@@ -610,70 +610,70 @@ export async function POST(req: NextRequest) {
       let helpMsg = "";
 
       if (profile.role === "builder") {
-        helpMsg = `🤖 *AgentsApp Builder Menu*\n\n` +
-          `👋 Welcome *${profile.name}* (${profile.agency_name || "Builder"})!\n\n` +
+        helpMsg = `\uD83E\uDD16 *AgentsApp Builder Menu*\n\n` +
+          `‘‹ Welcome *${profile.name}* (${profile.agency_name || "Builder"})!\n\n` +
           `Manage your projects and campaigns:\n\n` +
-          `1. 🚀 *Upcoming Launches*:\n` +
-          `   _"aa launches"_ — view all scheduled launches\n\n` +
-          `2. 🎥 *Register Webinar*:\n` +
-          `   _"aa webinars"_ — view/register agent webinars\n\n` +
-          `3. 👥 *My Agents*:\n` +
-          `   _"aa my agents"_ — list registered channel partners\n\n` +
-          `4. 🏢 *Search Inventory*:\n` +
-          `   _"aa inventory"_ — view your project units\n\n` +
-          `5. 📁 *Brochures*:\n` +
-          `   _"aa brochure [project]"_ — send brochure to agents\n\n` +
-          `6. 📊 *Campaign Stats*:\n` +
-          `   _"aa stats"_ — view campaign analytics\n\n` +
-          `👉 Prefix all commands with *aa*`;
+          `1. š€ *Upcoming Launches*:\n` +
+          `   _"aa launches"_ â€” view all scheduled launches\n\n` +
+          `2. Ž¥ *Register Webinar*:\n` +
+          `   _"aa webinars"_ â€” view/register agent webinars\n\n` +
+          `3. ‘¥ *My Agents*:\n` +
+          `   _"aa my agents"_ â€” list registered channel partners\n\n` +
+          `4. ¢ *Search Inventory*:\n` +
+          `   _"aa inventory"_ â€” view your project units\n\n` +
+          `5. 📈 *Brochures*:\n` +
+          `   _"aa brochure [project]"_ â€” send brochure to agents\n\n` +
+          `6. 📈Š *Campaign Stats*:\n` +
+          `   _"aa stats"_ â€” view campaign analytics\n\n` +
+          `‘‰ Prefix all commands with *aa*`;
       } else if (profile.role === "admin" || profile.role === "verification" || profile.role === "operations") {
-        helpMsg = `🤖 *AgentsApp Admin Menu*\n\n` +
-          `👋 Welcome *${profile.name}* (Admin)!\n\n` +
+        helpMsg = `\uD83E\uDD16 *AgentsApp Admin Menu*\n\n` +
+          `‘‹ Welcome *${profile.name}* (Admin)!\n\n` +
           `Full platform access:\n\n` +
-          `📊 *Analytics & Reports*\n` +
-          `1. _"aa agents"_ — list all registered agents\n` +
-          `2. _"aa leads"_ — total lead count across platform\n` +
-          `3. _"aa stats"_ — platform-wide analytics\n\n` +
-          `👥 *Agent Management*\n` +
-          `4. _"aa pending"_ — view pending verifications\n` +
-          `5. _"aa approve [name]"_ — approve an agent\n` +
-          `6. _"aa reject [name]"_ — reject an agent\n\n` +
-          `🏢 *Inventory & Projects*\n` +
-          `7. _"aa inventory"_ — search all inventory\n` +
-          `8. _"aa projects"_ — list all projects\n\n` +
-          `📅 *Events*\n` +
-          `9. _"aa launches"_ — upcoming events\n` +
-          `10. _"aa webinars"_ — active webinars\n\n` +
-          `👉 Prefix all commands with *aa*`;
+          `📈Š *Analytics & Reports*\n` +
+          `1. _"aa agents"_ â€” list all registered agents\n` +
+          `2. _"aa leads"_ â€” total lead count across platform\n` +
+          `3. _"aa stats"_ â€” platform-wide analytics\n\n` +
+          `‘¥ *Agent Management*\n` +
+          `4. _"aa pending"_ â€” view pending verifications\n` +
+          `5. _"aa approve [name]"_ â€” approve an agent\n` +
+          `6. _"aa reject [name]"_ â€” reject an agent\n\n` +
+          `¢ *Inventory & Projects*\n` +
+          `7. _"aa inventory"_ â€” search all inventory\n` +
+          `8. _"aa projects"_ â€” list all projects\n\n` +
+          `📈… *Events*\n` +
+          `9. _"aa launches"_ â€” upcoming events\n` +
+          `10. _"aa webinars"_ â€” active webinars\n\n` +
+          `‘‰ Prefix all commands with *aa*`;
       } else {
         // Default: Agent/Agent menu
-        helpMsg = `🤖 *AgentsApp Agent Menu*\n\n` +
-          `👋 Welcome *${profile.name}* (${profile.agency_name || "Agent"})!\n` +
-          `🆔 CP ID: *${profile.cp_id || "Pending"}*\n\n` +
-          `📋 *Leads*\n` +
-          `1. _"aa Add Name looking for BHK"_ — add lead\n` +
-          `2. _"aa My leads"_ — view all your leads\n` +
-          `3. _"aa Search Name"_ — find a specific lead\n` +
-          `4. _"aa Name site visit"_ — update lead status\n\n` +
-          `⏰ *Reminders*\n` +
-          `5. _"aa Remind me to call [Name] time [date]"_ — set reminder\n` +
-          `6. _"aa my reminders"_ — view pending reminders\n\n` +
-          `🏢 *Inventory & Projects*\n` +
-          `7. _"aa inventory"_ — view available units\n` +
-          `8. _"aa brochure [project]"_ — get brochure PDF\n` +
-          `9. _"aa my projects"_ — projects you follow\n\n` +
-          `📅 *Events*\n` +
-          `10. _"aa launches"_ — upcoming events & meets\n` +
-          `11. _"aa webinars"_ — register for webinars\n` +
-          `12. _"aa my events"_ — your accepted RSVPs\n\n` +
-          `🏆 *Rewards*\n` +
-          `13. _"aa rewards"_ — your XP balance & rank\n` +
-          `14. _"aa leaderboard"_ — top 10 agents\n` +
-          `15. _"aa my referrals"_ — agents you referred\n\n` +
+        helpMsg = `\uD83E\uDD16 *AgentsApp Agent Menu*\n\n` +
+          `‘‹ Welcome *${profile.name}* (${profile.agency_name || "Agent"})!\n` +
+          `†” CP ID: *${profile.cp_id || "Pending"}*\n\n` +
+          `📈‹ *Leads*\n` +
+          `1. _"aa Add Name looking for BHK"_ â€” add lead\n` +
+          `2. _"aa My leads"_ â€” view all your leads\n` +
+          `3. _"aa Search Name"_ â€” find a specific lead\n` +
+          `4. _"aa Name site visit"_ â€” update lead status\n\n` +
+          `â° *Reminders*\n` +
+          `5. _"aa Remind me to call [Name] time [date]"_ â€” set reminder\n` +
+          `6. _"aa my reminders"_ â€” view pending reminders\n\n` +
+          `¢ *Inventory & Projects*\n` +
+          `7. _"aa inventory"_ â€” view available units\n` +
+          `8. _"aa brochure [project]"_ â€” get brochure PDF\n` +
+          `9. _"aa my projects"_ â€” projects you follow\n\n` +
+          `📈… *Events*\n` +
+          `10. _"aa launches"_ â€” upcoming events & meets\n` +
+          `11. _"aa webinars"_ â€” register for webinars\n` +
+          `12. _"aa my events"_ â€” your accepted RSVPs\n\n` +
+          `† *Rewards*\n` +
+          `13. _"aa rewards"_ â€” your XP balance & rank\n` +
+          `14. _"aa leaderboard"_ â€” top 10 agents\n` +
+          `15. _"aa my referrals"_ â€” agents you referred\n\n` +
           `👤 *Profile*\n` +
-          `16. _"aa my profile"_ — your full profile details\n` +
-          `17. _"aa dashboard"_ — quick stats summary\n\n` +
-          `👉 Prefix all commands with *aa*`;
+          `16. _"aa my profile"_ â€” your full profile details\n` +
+          `17. _"aa dashboard"_ â€” quick stats summary\n\n` +
+          `‘‰ Prefix all commands with *aa*`;
       }
 
       await sendOutboundReply(helpMsg);
@@ -699,14 +699,17 @@ export async function POST(req: NextRequest) {
     // --- CONVERSATIONAL STATE MACHINE: INVENTORY FILTER ---
     if (lastBotMessageStr.includes("Filter this list?") && lastBotMessageStr.includes("Reply with your preferred location")) {
       // If the bot just asked them to filter, treat their next message as an inventory query
-      if (!commandLower.includes("inventory")) {
+      const isNewCommand = commandLower.startsWith("search") || commandLower.startsWith("find") || commandLower.startsWith("add ") || commandLower.startsWith("update ") || commandLower.startsWith("project ") || commandLower.startsWith("units ");
+      if (!isNewCommand && !commandLower.includes("inventory")) {
         commandLower = "inventory " + commandLower;
       }
     }
 
     // --- CONVERSATIONAL STATE MACHINE: LEADS FILTER ---
     if (lastBotMessageStr.includes("Filter these leads?") && lastBotMessageStr.includes("Reply with a location")) {
-      if (!commandLower.includes("my leads") && !commandLower.includes("show leads")) {
+      // Don't intercept if they are running a completely different command from the menu
+      const isNewCommand = commandLower.startsWith("search") || commandLower.startsWith("find") || commandLower.startsWith("add ") || commandLower.startsWith("update ") || commandLower.startsWith("project ") || commandLower.startsWith("units ");
+      if (!isNewCommand && !commandLower.includes("my leads") && !commandLower.includes("show leads")) {
         commandLower = "my leads " + commandLower;
       }
     }
@@ -715,38 +718,126 @@ export async function POST(req: NextRequest) {
     if (commandLower === "reminder" || commandLower === "reminders" || commandLower === "my reminders") {
       const { data: reminders } = await supabase.from("reminders").select("*").eq("agent_id", profile.id).eq("is_completed", false);
       if (!reminders || reminders.length === 0) {
-        await sendOutboundReply(`🤖 Bot: You have no pending reminders!`);
+        await sendOutboundReply(`\uD83E\uDD16 Bot: You have no pending reminders!`);
         return NextResponse.json({ status: "success" });
       }
-      const rList = reminders.map((r: any) => `⏰ *${r.scheduled_time}*\n${r.title}`).join("\n\n");
-      const rep = `🤖 Bot: Here are your reminders:\n\n${rList}`;
+      const rList = reminders.map((r: any) => `â ° *${r.scheduled_time}*\n${r.title}`).join("\n\n");
+      const rep = `\uD83E\uDD16 Bot: Here are your reminders:\n\n${rList}`;
       await sendOutboundReply(rep);
       return NextResponse.json({ status: "success" });
     }
 
     // --- SMART SEARCH: PROJECTS ---
-    if (commandLower.startsWith("find projects by ")) {
-       const builderName = commandText.replace(/find projects by /i, "").trim();
-       const { data: builders } = await supabase.from("profiles").select("id, name").eq("role", "builder").ilike("name", `%${builderName}%`);
-       if (!builders || builders.length === 0) {
-          await sendOutboundReply(`🤖 Bot: Could not find any builders matching "${builderName}".`);
-          return NextResponse.json({ status: "success" });
+    if (commandLower.startsWith("find projects by ") || commandLower.startsWith("search project ")) {
+       const searchTerm = commandText.replace(/find projects by /i, "").replace(/search project /i, "").trim();
+       
+       // First try finding a builder
+       const { data: builders } = await supabase.from("profiles").select("id, name").eq("role", "builder").ilike("name", `%${searchTerm}%`);
+       
+       if (builders && builders.length > 0) {
+           const builderId = builders[0].id;
+           const { data: projs } = await supabase.from("projects").select("*").eq("developer_id", builderId);
+           if (!projs || projs.length === 0) {
+              await sendOutboundReply(`\uD83E\uDD16 Bot: Builder ${builders[0].name} has no listed projects.`);
+              return NextResponse.json({ status: "success" });
+           }
+           const pList = projs.map((p: any) => `\uD83C\uDFE2 *${p.name}*\n\uD83D\uDCCD ${p.location} | \uD83D\uDCB0 ${p.price_range || "Contact for details"}`).join("\n\n");
+           const rep = `\uD83E\uDD16 Bot: Projects by ${builders[0].name}:\n\n${pList}\n\n\uD83D\uDCA1 _Tip: Type "project info [name]" for details, or "units in [name]" for availability!_`;
+           await sendOutboundReply(rep);
+           return NextResponse.json({ status: "success" });
        }
-       const builderId = builders[0].id;
-       const { data: projs } = await supabase.from("projects").select("*").eq("developer_id", builderId);
-       if (!projs || projs.length === 0) {
-          await sendOutboundReply(`🤖 Bot: Builder ${builders[0].name} has no listed projects.`);
-          return NextResponse.json({ status: "success" });
+       
+       // Fallback: search projects by name
+       const { data: projsByName } = await supabase.from("projects").select("*").ilike("name", `%${searchTerm}%`);
+       if (!projsByName || projsByName.length === 0) {
+           await sendOutboundReply(`\uD83E\uDD16 Bot: Could not find any builders or projects matching "${searchTerm}".`);
+           return NextResponse.json({ status: "success" });
        }
-       const pList = projs.map((p: any) => `🏢 *${p.name}*\n📍 ${p.location} | 💰 ${p.price_range}`).join("\n\n");
-       const rep = `🤖 Bot: Projects by ${builders[0].name}:\n\n${pList}`;
+       
+       const pList = projsByName.map((p: any) => `\uD83C\uDFE2 *${p.name}*\n\uD83D\uDCCD ${p.location} | \uD83D\uDCB0 ${p.price_range || "Contact for details"}`).join("\n\n");
+       const rep = `\uD83E\uDD16 Bot: Found these matching projects:\n\n${pList}\n\n\uD83D\uDCA1 _Tip: Type "project info [name]" for details, or "units in [name]" for availability!_`;
        await sendOutboundReply(rep);
        return NextResponse.json({ status: "success" });
     }
 
+    // --- SMART SEARCH: PROJECT INFO ---
+    if (commandLower.startsWith("project info ") || commandLower.startsWith("tell me about ")) {
+       const projectName = commandText.replace(/project info /i, "").replace(/tell me about /i, "").trim();
+       
+       const { data: projs } = await supabase.from("projects").select("*, profiles(name)").ilike("name", `%${projectName}%`);
+       if (!projs || projs.length === 0) {
+           await sendOutboundReply(`\uD83E\uDD16 Bot: I couldn't find any details for a project named "${projectName}".`);
+           return NextResponse.json({ status: "success" });
+       }
+       
+       const p = projs[0]; // Take the first match
+       const builderName = p.profiles?.name ? ` by *${p.profiles.name}*` : "";
+       
+       // Fetch inventory counts
+       const { data: units } = await supabase.from("inventory_units").select("status").eq("project_id", p.id);
+       let inventoryStr = "";
+       if (units && units.length > 0) {
+           const available = units.filter(u => u.status === "available").length;
+           const booked = units.filter(u => u.status === "booked").length;
+           const sold = units.filter(u => u.status === "sold").length;
+           inventoryStr = `\n\n\uD83D\uDCCA *Inventory:* \u2705 ${available} Available | \u23F3 ${booked} Booked`;
+       }
+       
+       const rep = `\uD83C\uDFE2 *${p.name}*${builderName}\n\n\uD83D\uDCCD Location: ${p.location}\n\uD83D\uDCB0 Price: ${p.price_range || "Contact for details"}\n\uD83C\uDFD8 Type: ${p.type}\n\n\uD83D\uDCDD Details: ${p.description || "No description available."}${inventoryStr}\n\n\uD83D\uDCA1 _Tip: Type "units in ${p.name}" to see the full list of available units!_`;
+       await sendOutboundReply(rep);
+       return NextResponse.json({ status: "success" });
+    }
+
+    // --- SMART SEARCH: PROJECT UNITS / INVENTORY SUMMARY ---
+    if (commandLower.startsWith("units in ") || commandLower.startsWith("inventory for ") || commandLower.startsWith("available in ")) {
+        const projectName = commandText.replace(/units in /i, "").replace(/inventory for /i, "").replace(/available in /i, "").trim();
+        
+        // Find project
+        const { data: projs } = await supabase.from("projects").select("id, name").ilike("name", `%${projectName}%`);
+        if (!projs || projs.length === 0) {
+           await sendOutboundReply(`\uD83E\uDD16 Bot: Could not find any project matching "${projectName}".`);
+           return NextResponse.json({ status: "success" });
+        }
+        const projId = projs[0].id;
+        const actualProjName = projs[0].name;
+
+        // Find units
+        const { data: units } = await supabase.from("inventory_units").select("*").eq("project_id", projId);
+        
+        if (!units || units.length === 0) {
+           await sendOutboundReply(`\uD83E\uDD16 Bot: No inventory units listed for project *${actualProjName}*.`);
+           return NextResponse.json({ status: "success" });
+        }
+        
+        const available = units.filter(u => u.status === "available").length;
+        const booked = units.filter(u => u.status === "booked").length;
+        const sold = units.filter(u => u.status === "sold").length;
+        
+        let replyMsg = `\uD83C\uDFE2 *${actualProjName} Inventory*\n\n`;
+        replyMsg += `\u2705 Available: *${available}*\n\u23F3 Booked: *${booked}*\n\u274C Sold: *${sold}*\n\n`;
+        replyMsg += `*List of Available Units:*\n`;
+        
+        const availableUnits = units.filter(u => u.status === "available");
+        if (availableUnits.length === 0) {
+            replyMsg += `None currently available.`;
+        } else {
+            availableUnits.slice(0, 15).forEach((u, idx) => {
+                let config = u.details?.['Number of Bedrooms'] ? `${u.details['Number of Bedrooms']} BHK` : (u.details?.config || "");
+                let size = u.details?.Sqft ? `${u.details.Sqft} Sqft` : (u.details?.size || "");
+                let facing = u.details?.Facing || u.details?.facing || "";
+                let price = u.details?.price || u.details?.Price || "Contact for Price";
+                replyMsg += `\u25AA *${u.unit_name}* (${config}, ${size}, ${facing} facing) - ${price}\n`;
+            });
+            if (availableUnits.length > 15) replyMsg += `\n...and ${availableUnits.length - 15} more.`;
+        }
+        
+        await sendOutboundReply(replyMsg);
+        return NextResponse.json({ status: "success" });
+    }
+
     // --- SMART SEARCH: INVENTORY ---
-    if (commandLower.startsWith("search for a ") || commandLower.startsWith("search ")) {
-       const cleanCmd = commandLower.replace("search for a ", "").replace("search ", "");
+    if (commandLower.startsWith("search for a ") || commandLower.startsWith("search area ") || commandLower.startsWith("search ")) {
+       const cleanCmd = commandLower.replace("search for a ", "").replace("search area ", "").replace("search ", "");
        const bhkMatch = cleanCmd.match(/(\d)\s*bhk/i);
        const typeMatch = cleanCmd.match(/(flat|villa|plot|apartment)/i);
        const locMatch = cleanCmd.match(/in (.*)/i);
@@ -754,7 +845,12 @@ export async function POST(req: NextRequest) {
        const bhk = bhkMatch ? bhkMatch[0] : "";
        let pType = typeMatch ? typeMatch[1].toLowerCase() : "";
        if (pType === "flat") pType = "apartment";
-       const loc = locMatch ? locMatch[1].trim() : "";
+       let loc = locMatch ? locMatch[1].trim() : "";
+       
+       if (!loc && cleanCmd && !cleanCmd.includes("in ")) {
+           // If they didn't use "in", just assume the remaining text is the location
+           loc = cleanCmd.replace(bhk, "").replace(typeMatch ? typeMatch[0] : "", "").trim();
+       }
 
        let q = supabase.from("projects").select("id, name, location");
        if (loc) q = q.ilike("location", `%${loc}%`);
@@ -762,12 +858,12 @@ export async function POST(req: NextRequest) {
 
        const { data: projs } = await q;
        if (!projs || projs.length === 0) {
-          await sendOutboundReply(`🤖 Bot: Could not find any ${pType || "properties"} in ${loc || "that area"}.`);
+          await sendOutboundReply(`\uD83E\uDD16 Bot: Could not find any ${pType || "properties"} in ${loc || "that area"}.`);
           return NextResponse.json({ status: "success" });
        }
 
-       const pList = projs.map((p: any) => `🏢 *${p.name}* in ${p.location}`).join("\n");
-       const rep = `🤖 Bot: I found these matches:\n\n${pList}`;
+       const pList = projs.map((p: any) => ` ¢ *${p.name}* in ${p.location}`).join("\n");
+       const rep = `\uD83E\uDD16 Bot: I found these matches:\n\n${pList}\n\n\uD83D\uDCA1 _Tip: Type "project info [name]" for details, or "units in [name]" for availability!_`;
        await sendOutboundReply(rep);
        return NextResponse.json({ status: "success" });
     }
@@ -775,24 +871,29 @@ export async function POST(req: NextRequest) {
     // --- CONVERSATIONAL STATE MACHINE: ADD LEAD ---
     // State 1: Awaiting Property Type
     if (lastBotMessageStr.includes("Is ") && lastBotMessageStr.includes(" looking for a flat, villa, or plot?")) {
-      const nameMatch = lastBotMessageStr.match(/Is (.*?) looking for a flat, villa, or plot\?/);
-      if (nameMatch) {
-        const leadName = nameMatch[1];
-        const propertyType = commandText.trim();
-        const replyType = `🤖 Bot: Got it, a ${propertyType}. What is ${leadName}'s budget?`;
-        await sendOutboundReply(replyType);
-        return NextResponse.json({ status: "success", reply: replyType });
+      const isNewCommand = commandLower.startsWith("search") || commandLower.startsWith("find") || commandLower.startsWith("add ") || commandLower.startsWith("update ") || commandLower.startsWith("project ") || commandLower.startsWith("units ");
+      if (!isNewCommand) {
+          const nameMatch = lastBotMessageStr.match(/Is (.*?) looking for a flat, villa, or plot\?/);
+          if (nameMatch) {
+            const leadName = nameMatch[1];
+            const propertyType = commandText.trim();
+            const replyType = `\uD83E\uDD16 Bot: Got it, a ${propertyType}. What is ${leadName}'s budget?`;
+            await sendOutboundReply(replyType);
+            return NextResponse.json({ status: "success", reply: replyType });
+          }
       }
     }
 
     // State 2: Awaiting Budget
     if (lastBotMessageStr.includes("Got it, a ") && lastBotMessageStr.includes("What is ") && lastBotMessageStr.includes("'s budget?")) {
-      const typeMatch = lastBotMessageStr.match(/Got it, a (.*?)\./);
-      const nameMatch = lastBotMessageStr.match(/What is (.*?)'s budget\?/);
-      if (typeMatch && nameMatch) {
-        const propertyType = typeMatch[1];
-        const leadName = nameMatch[1];
-        const budget = commandText.trim();
+      const isNewCommand = commandLower.startsWith("search") || commandLower.startsWith("find") || commandLower.startsWith("add ") || commandLower.startsWith("update ") || commandLower.startsWith("project ") || commandLower.startsWith("units ");
+      if (!isNewCommand) {
+          const typeMatch = lastBotMessageStr.match(/Got it, a (.*?)\./);
+          const nameMatch = lastBotMessageStr.match(/What is (.*?)'s budget\?/);
+          if (typeMatch && nameMatch) {
+            const propertyType = typeMatch[1];
+            const leadName = nameMatch[1];
+            const budget = commandText.trim();
 
         const { error } = await supabase
           .from("leads")
@@ -807,14 +908,15 @@ export async function POST(req: NextRequest) {
           }]);
         
         if (error) {
-           const replyErr = `🤖 Bot: ❌ Failed to add lead: ${error.message}`;
+           const replyErr = `\uD83E\uDD16 Bot: â Œ Failed to add lead: ${error.message}`;
            await sendOutboundReply(replyErr);
            return NextResponse.json({ status: "error", reply: replyErr });
         }
         
-        const replyOk = `🤖 Bot: ✅ Lead Added!\n👤 Name: *${leadName}*\n🏠 Req: *${propertyType}*\n💰 Budget: *${budget}*\n\n(This was inserted in your live leads table!)`;
+        const replyOk = `\uD83E\uDD16 Bot: \u2705 Lead Added!\n👤 Name: *${leadName}*\n   Req: *${propertyType}*\n’° Budget: *${budget}*\n\n(This was inserted in your live leads table!)`;
         await sendOutboundReply(replyOk);
         return NextResponse.json({ status: "success", reply: replyOk });
+      }
       }
     }
 
@@ -822,11 +924,11 @@ export async function POST(req: NextRequest) {
     if (commandLower.startsWith("add a client ") || commandLower.startsWith("add lead ")) {
       const leadName = commandText.replace(/add a client/i, "").replace(/add lead/i, "").trim();
       if (!leadName) {
-         const rep = `🤖 Bot: Please provide the client's name. Example: "add a client Sreenivas"`;
+         const rep = `\uD83E\uDD16 Bot: Please provide the client's name. Example: "add a client Sreenivas"`;
          await sendOutboundReply(rep);
          return NextResponse.json({ status: "success", reply: rep });
       }
-      const replyStart = `🤖 Bot: Great! Is ${leadName} looking for a flat, villa, or plot?`;
+      const replyStart = `\uD83E\uDD16 Bot: Great! Is ${leadName} looking for a flat, villa, or plot?`;
       await sendOutboundReply(replyStart);
       return NextResponse.json({ status: "success", reply: replyStart });
     }
@@ -885,12 +987,12 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         console.error("Failed to insert reminder via WhatsApp bot:", error);
-        const replyErr = `🤖 Bot: ❌ Failed to save reminder: ${error.message}`;
+        const replyErr = `\uD83E\uDD16 Bot: âŒ Failed to save reminder: ${error.message}`;
         await sendOutboundReply(replyErr);
         return NextResponse.json({ status: "error", reply: replyErr });
       } else {
         console.log("Successfully logged reminder via WhatsApp bot:", newReminder);
-        const replyOk = `🤖 Bot: ⏰ Reminder Scheduled!\n⏰ Task: *${title}*\n📅 Time: *${scheduledTime}*\n\n(Successfully logged in your Supabase reminders table!)`;
+        const replyOk = `\uD83E\uDD16 Bot: â° Reminder Scheduled!\nâ° Task: *${title}*\n📈… Time: *${scheduledTime}*\n\n(Successfully logged in your Supabase reminders table!)`;
         await sendOutboundReply(replyOk);
         return NextResponse.json({ status: "success", reply: replyOk });
       }
@@ -948,11 +1050,11 @@ export async function POST(req: NextRequest) {
 
         if (error) {
           console.error("Failed to update lead status via WhatsApp bot:", error);
-          const replyErr = `🤖 Bot: ❌ Failed to update status: ${error.message}`;
+          const replyErr = `\uD83E\uDD16 Bot: âŒ Failed to update status: ${error.message}`;
           await sendOutboundReply(replyErr);
           return NextResponse.json({ status: "error", reply: replyErr });
         } else {
-          const replyOk = `🤖 Bot: ✅ Lead Status Updated!\n👤 Name: *${matchedLead.name}*\n⚡ New Status: *${matchedStatus.toUpperCase()}*\n\n(Kanban board is synced with this update in real time!)`;
+          const replyOk = `\uD83E\uDD16 Bot: \u2705 Lead Status Updated!\n👤 Name: *${matchedLead.name}*\nâš¡ New Status: *${matchedStatus.toUpperCase()}*\n\n(Kanban board is synced with this update in real time!)`;
           await sendOutboundReply(replyOk);
           return NextResponse.json({ status: "success", reply: replyOk });
         }
@@ -1026,15 +1128,15 @@ export async function POST(req: NextRequest) {
       }
 
       if (!leads || leads.length === 0) {
-        let replyEmpty = "🤖 Bot: You don't have any leads registered yet. Add one by typing:\n\"aa Add lead Name phone 9999999999\"";
+        let replyEmpty = "\uD83E\uDD16 Bot: You don't have any leads registered yet. Add one by typing:\n\"aa Add lead Name phone 9999999999\"";
         if (locationFilter || budgetFilter) {
-          replyEmpty = `🤖 Bot: No leads found matching your filters: ${locationFilter ? `📍 Loc: ${locationFilter}` : ""} ${budgetFilter ? `💰 Budget: ${budgetFilter}` : ""}`;
+          replyEmpty = `\uD83E\uDD16 Bot: No leads found matching your filters: ${locationFilter ? `📈 Loc: ${locationFilter}` : ""} ${budgetFilter ? `’° Budget: ${budgetFilter}` : ""}`;
         }
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
-      let replyMsg = `🤖 *Your CRM Leads List*\n`;
+      let replyMsg = `\uD83E\uDD16 *Your CRM Leads List*\n`;
       if (locationFilter || budgetFilter) {
         replyMsg += `*(Filtered by: ${locationFilter ? locationFilter + " " : ""}${budgetFilter ? budgetFilter : ""})*\n\n`;
       } else {
@@ -1043,27 +1145,27 @@ export async function POST(req: NextRequest) {
       
       leads.forEach((l, idx) => {
         const emojiMap: Record<string, string> = {
-          new: "🆕",
-          interested: "💡",
-          site_visit: "🚗",
-          negotiation: "🤝",
-          closed: "🎉",
-          lost: "❌"
+          new: "†•",
+          interested: "’¡",
+          site_visit: "š—",
+          negotiation: "¤",
+          closed: "Ž‰",
+          lost: "âŒ"
         };
         const emoji = emojiMap[l.status] || "👤";
         replyMsg += `${idx + 1}. ${emoji} *${l.name}* (${l.phone || "No phone"})`;
         if (l.location || l.requirement) {
-          replyMsg += `\n   📍 Loc: ${l.location || "-"} | Req: ${l.requirement || "-"}`;
+          replyMsg += `\n   📈 Loc: ${l.location || "-"} | Req: ${l.requirement || "-"}`;
         }
         if (l.budget) {
-          replyMsg += `\n   💰 Budget: ${l.budget}`;
+          replyMsg += `\n   ’° Budget: ${l.budget}`;
         }
-        replyMsg += `\n   ⚡ Status: *${l.status.toUpperCase()}*\n\n`;
+        replyMsg += `\n   âš¡ Status: *${l.status.toUpperCase()}*\n\n`;
       });
       
       const isLeadsFiltered = locationFilter || budgetFilter;
       if (!isLeadsFiltered && leads.length > 0) {
-        replyMsg += `\n🤖 *Filter these leads?*\nReply with a location (e.g. Kokapet) or budget (e.g. under 1cr) to filter.`;
+        replyMsg += `\n\uD83E\uDD16 *Filter these leads?*\nReply with a location (e.g. Kokapet) or budget (e.g. under 1cr) to filter.`;
       }
       
       await sendOutboundReply(replyMsg.trim());
@@ -1082,7 +1184,7 @@ export async function POST(req: NextRequest) {
         .select("*, projects(name)");
 
       if (!docs || docs.length === 0) {
-        const replyEmpty = "🤖 Bot: No brochures or price list documents found in vault.";
+        const replyEmpty = "\uD83E\uDD16 Bot: No brochures or price list documents found in vault.";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
@@ -1103,7 +1205,7 @@ export async function POST(req: NextRequest) {
       }
 
       const docUrl = matchedDoc.url === "#" ? "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" : matchedDoc.url;
-      const replyDoc = `🤖 Bot: 📁 Document Retrieved!\n📄 Name: *${matchedDoc.name}*\n📥 Type: *${matchedDoc.type}*\n🏢 Project: *${matchedDoc.projects?.name || "General"}*\n\n🔗 *Download Link*:\n${docUrl}\n\n(Tap the link to download details instantly.)`;
+      const replyDoc = `\uD83E\uDD16 Bot: 📈 Document Retrieved!\n📈„ Name: *${matchedDoc.name}*\n📈¥ Type: *${matchedDoc.type}*\n¢ Project: *${matchedDoc.projects?.name || "General"}*\n\n🔍— *Download Link*:\n${docUrl}\n\n(Tap the link to download details instantly.)`;
       
       await sendOutboundReply(replyDoc);
       return NextResponse.json({ status: "success", reply: replyDoc });
@@ -1117,14 +1219,14 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       if (!events || events.length === 0) {
-        const replyEmpty = "🤖 Bot: No upcoming launches or developer events scheduled at this moment.";
+        const replyEmpty = "\uD83E\uDD16 Bot: No upcoming launches or developer events scheduled at this moment.";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
-      let replyMsg = `🚀 *Upcoming Launches & CP Meets*:\n\n`;
+      let replyMsg = `š€ *Upcoming Launches & CP Meets*:\n\n`;
       events.forEach((ev, idx) => {
-        replyMsg += `${idx + 1}. 📅 *${ev.title}*\n   📅 Date: *${ev.date}*\n   📍 Venue: *${ev.location}*\n   📝 Description: ${ev.description || "N/A"}\n\n`;
+        replyMsg += `${idx + 1}. 📈… *${ev.title}*\n   📈… Date: *${ev.date}*\n   📈 Venue: *${ev.location}*\n   📈 Description: ${ev.description || "N/A"}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1138,7 +1240,7 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       if (!webinars || webinars.length === 0) {
-        const replyEmpty = "🤖 Bot: No active agent webinars scheduled. Check back later!";
+        const replyEmpty = "\uD83E\uDD16 Bot: No active agent webinars scheduled. Check back later!";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
@@ -1146,18 +1248,53 @@ export async function POST(req: NextRequest) {
       const targetWebinar = webinars[0]; // Register for the latest upcoming webinar
 
       if (commandLower.includes("register") || commandLower.includes("join") || commandLower.includes("book")) {
-        const replyOk = `🎉 *Webinar Registration Confirmed!*\n\n🎥 Title: *${targetWebinar.title}*\n📅 Time: *${targetWebinar.scheduled_time}*\n🎁 Reward: *${targetWebinar.reward || "Certificate"}*\n\nYour attendance pass has been generated. The live link will be sent to this chat 15 minutes before the start time. Attend & claim your reward!`;
+        const replyOk = `Ž‰ *Webinar Registration Confirmed!*\n\nŽ¥ Title: *${targetWebinar.title}*\n📈… Time: *${targetWebinar.scheduled_time}*\nŽ Reward: *${targetWebinar.reward || "Certificate"}*\n\nYour attendance pass has been generated. The live link will be sent to this chat 15 minutes before the start time. Attend & claim your reward!`;
         await sendOutboundReply(replyOk);
         return NextResponse.json({ status: "success", reply: replyOk });
       } else {
-        let replyMsg = `🎥 *Active Agent Webinars*:\n\n`;
+        let replyMsg = `Ž¥ *Active Agent Webinars*:\n\n`;
         webinars.forEach((w, idx) => {
-          replyMsg += `${idx + 1}. 📺 *${w.title}*\n   📅 Time: *${w.scheduled_time}*\n   🎁 Reward: *${w.reward || "N/A"}*\n   📝 Info: ${w.details || "N/A"}\n\n`;
+          replyMsg += `${idx + 1}. 📈º *${w.title}*\n   📈… Time: *${w.scheduled_time}*\n   Ž Reward: *${w.reward || "N/A"}*\n   📈 Info: ${w.details || "N/A"}\n\n`;
         });
-        replyMsg += `👉 Write _"aa Register webinar"_ to secure your virtual pass.`;
+        replyMsg += `‘‰ Write _"aa Register webinar"_ to secure your virtual pass.`;
         await sendOutboundReply(replyMsg.trim());
         return NextResponse.json({ status: "success", reply: replyMsg.trim() });
       }
+    }
+
+    // 8.5 UPDATE LEAD STATUS INTENT
+    if (commandLower.startsWith("update lead ")) {
+        const match = commandLower.match(/update lead (.*) to (.*)/i);
+        if (match) {
+            const leadName = match[1].trim();
+            let newStatus = match[2].trim().toLowerCase().replace(" ", "_");
+            
+            const validStatuses = ["new", "contacted", "interested", "site_visit", "negotiation", "booked", "lost"];
+            if (!validStatuses.includes(newStatus)) {
+                 await sendOutboundReply(`\uD83E\uDD16 Bot: \u274C Invalid status. Valid statuses are: ${validStatuses.join(", ")}`);
+                 return NextResponse.json({ status: "success" });
+            }
+            
+            const { data: leads } = await supabase
+              .from("leads")
+              .select("*")
+              .eq("agent_id", profile.id)
+              .ilike("name", `%${leadName}%`);
+              
+            if (!leads || leads.length === 0) {
+                 await sendOutboundReply(`\uD83E\uDD16 Bot: \u274C Could not find any lead matching "${leadName}".`);
+                 return NextResponse.json({ status: "success" });
+            }
+            
+            const targetLead = leads[0];
+            await supabase.from("leads").update({ status: newStatus }).eq("id", targetLead.id);
+            
+            await sendOutboundReply(`\uD83E\uDD16 Bot: \u2705 Successfully updated lead *${targetLead.name}* to status *${newStatus.toUpperCase()}*.`);
+            return NextResponse.json({ status: "success" });
+        } else {
+            await sendOutboundReply(`\uD83E\uDD16 Bot: To update a lead, use the format: *update lead [name] to [status]*\nExample: _update lead Ravi to site visit_`);
+            return NextResponse.json({ status: "success" });
+        }
     }
 
     // 9. SEARCH LEAD INTENT
@@ -1184,13 +1321,13 @@ export async function POST(req: NextRequest) {
         const isLoc = query.toLowerCase().includes("kokapet") || query.toLowerCase().includes("gachibowli");
 
         if ((!matched || matched.length === 0) && !isLoc) {
-          const replyEmpty = `🤖 Bot: ❌ No lead found matching "${query}" in your CRM.`;
+          const replyEmpty = `\uD83E\uDD16 Bot: âŒ No lead found matching "${query}" in your CRM.`;
           await sendOutboundReply(replyEmpty);
           return NextResponse.json({ status: "success", reply: replyEmpty });
         } else if (matched && matched.length > 0) {
-          let replyMsg = `🤖 *Lead Lookup Results*\n\n`;
+          let replyMsg = `\uD83E\uDD16 *Lead Lookup Results*\n\n`;
           matched.forEach(l => {
-            replyMsg += `👤 *${l.name}*\n📱 Phone: ${l.phone}\n📧 Email: ${l.email || "N/A"} \n⚡ Status: *${l.status.toUpperCase()}*\n🏠 Req: ${l.requirement || "N/A"} in ${l.location || "N/A"}\n💰 Budget: ${l.budget || "N/A"}\n📝 Notes: ${l.details?.notes || "No notes available"}\n\n`;
+            replyMsg += `👤 *${l.name}*\n📈± Phone: ${l.phone}\n📈§ Email: ${l.email || "N/A"} \nâš¡ Status: *${l.status.toUpperCase()}*\n  Req: ${l.requirement || "N/A"} in ${l.location || "N/A"}\n’° Budget: ${l.budget || "N/A"}\n📈 Notes: ${l.details?.notes || "No notes available"}\n\n`;
           });
           await sendOutboundReply(replyMsg.trim());
           return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1261,12 +1398,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      let replyMsg = `🤖 *Inventory Matches Found*:\n\n`;
+      let replyMsg = `\uD83E\uDD16 *Inventory Matches Found*:\n\n`;
       if (filteredUnits.length === 0) {
-        replyMsg = `🤖 Bot: No specific units match your search. Here are general projects:\n\n`;
+        replyMsg = `\uD83E\uDD16 Bot: No specific units match your search. Here are general projects:\n\n`;
         const { data: projects } = await supabase.from("projects").select("*");
         projects?.forEach(p => {
-          replyMsg += `🏢 *${p.name}* (${p.location})\n💰 Price: ${p.price_range}\n🏗️ Type: ${p.type.toUpperCase()}\n\n`;
+          replyMsg += `¢ *${p.name}* (${p.location})\n’° Price: ${p.price_range || "Contact for details"}\n—ï¸ Type: ${p.type.toUpperCase()}\n\n`;
         });
         await sendOutboundReply(replyMsg.trim());
         return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1276,21 +1413,21 @@ export async function POST(req: NextRequest) {
         const projName = u.projects?.name || "General Project";
         const location = u.projects?.location || "N/A";
         const type = u.projects?.type || "N/A";
-        const statusEmoji = u.status === "available" ? "🟢" : u.status === "booked" ? "🟡" : "🔴";
+        const statusEmoji = u.status === "available" ? "Ÿ¢" : u.status === "booked" ? "Ÿ¡" : "🔍´";
         
         let detailsStr = "";
         if (u.details && typeof u.details === "object") {
           detailsStr = Object.entries(u.details)
-            .map(([k, v]) => `• ${k.charAt(0).toUpperCase() + k.slice(1)}: *${v}*`)
+            .map(([k, v]) => `â€¢ ${k.charAt(0).toUpperCase() + k.slice(1)}: *${v}*`)
             .join("\n");
         }
 
-        replyMsg += `${idx + 1}. ${statusEmoji} *${u.unit_name}* in *${projName}*\n📍 Loc: ${location} | Type: ${type.toUpperCase()}\n⚙️ Status: *${u.status.toUpperCase()}*\n${detailsStr}\n\n`;
+        replyMsg += `${idx + 1}. ${statusEmoji} *${u.unit_name}* in *${projName}*\n📈 Loc: ${location} | Type: ${type.toUpperCase()}\nâš™ï¸ Status: *${u.status.toUpperCase()}*\n${detailsStr}\n\n`;
       });
 
       const isFiltered = commandLower.includes("plot") || commandLower.includes("villa") || commandLower.includes("apartment") || commandLower.includes("bhk") || commandLower.includes("kokapet") || commandLower.includes("gachibowli") || commandLower.includes("east") || commandLower.includes("north") || commandLower.includes("flat");
       if (!isFiltered && filteredUnits.length > 0) {
-        replyMsg += `\n🤖 *Filter this list?*\nReply with your preferred location (e.g. Kokapet) or type (e.g. 3BHK) to filter.`;
+        replyMsg += `\n\uD83E\uDD16 *Filter this list?*\nReply with your preferred location (e.g. Kokapet) or type (e.g. 3BHK) to filter.`;
       }
 
       await sendOutboundReply(replyMsg.trim());
@@ -1307,10 +1444,10 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(15);
 
-      let replyMsg = `🤖 *All Registered Agents* (${count || 0} total)\n\n`;
+      let replyMsg = `\uD83E\uDD16 *All Registered Agents* (${count || 0} total)\n\n`;
       (agents || []).forEach((a: any, idx: number) => {
-        const statusEmoji = a.status === "approved" ? "✅" : a.status === "pending" ? "⏳" : "❌";
-        replyMsg += `${idx + 1}. ${statusEmoji} *${a.name}*\n   📱 ${a.phone} | 🏢 ${a.agency_name || "N/A"}\n\n`;
+        const statusEmoji = a.status === "approved" ? "\u2705" : a.status === "pending" ? "â³" : "âŒ";
+        replyMsg += `${idx + 1}. ${statusEmoji} *${a.name}*\n   📈± ${a.phone} | ¢ ${a.agency_name || "N/A"}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1327,16 +1464,16 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       if (!pending || pending.length === 0) {
-        const reply = "🤖 Bot: No pending verifications. All caught up! ✅";
+        const reply = "\uD83E\uDD16 Bot: No pending verifications. All caught up! \u2705";
         await sendOutboundReply(reply);
         return NextResponse.json({ status: "success", reply });
       }
 
-      let replyMsg = `🤖 *Pending Verifications* (${pending.length})\n\n`;
+      let replyMsg = `\uD83E\uDD16 *Pending Verifications* (${pending.length})\n\n`;
       pending.forEach((a: any, idx: number) => {
-        replyMsg += `${idx + 1}. ⏳ *${a.name}*\n   📱 ${a.phone}\n   🏢 ${a.agency_name || "N/A"}\n   📄 RERA: ${a.rera_number || "N/A"}\n\n`;
+        replyMsg += `${idx + 1}. â³ *${a.name}*\n   📈± ${a.phone}\n   ¢ ${a.agency_name || "N/A"}\n   📈„ RERA: ${a.rera_number || "N/A"}\n\n`;
       });
-      replyMsg += `👉 Type _"aa approve [name]"_ or _"aa reject [name]"_ to action.`;
+      replyMsg += `‘‰ Type _"aa approve [name]"_ or _"aa reject [name]"_ to action.`;
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
     }
@@ -1357,10 +1494,10 @@ export async function POST(req: NextRequest) {
         .from("events")
         .select("*", { count: "exact", head: true });
 
-      const replyMsg = `🤖 *Platform Stats*\n\n` +
-        `👥 Total Agents: *${agentCount || 0}*\n` +
-        `📊 Total Leads: *${leadCount || 0}*\n` +
-        `📅 Total Events: *${eventCount || 0}*\n`;
+      const replyMsg = `\uD83E\uDD16 *Platform Stats*\n\n` +
+        `‘¥ Total Agents: *${agentCount || 0}*\n` +
+        `📈Š Total Leads: *${leadCount || 0}*\n` +
+        `📈… Total Events: *${eventCount || 0}*\n`;
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
     }
@@ -1377,14 +1514,14 @@ export async function POST(req: NextRequest) {
         .limit(20);
 
       if (!agents || agents.length === 0) {
-        const reply = "🤖 Bot: No registered agents found.";
+        const reply = "\uD83E\uDD16 Bot: No registered agents found.";
         await sendOutboundReply(reply);
         return NextResponse.json({ status: "success", reply });
       }
 
-      let replyMsg = `🤖 *Registered Channel Partners* (${agents.length})\n\n`;
+      let replyMsg = `\uD83E\uDD16 *Registered Channel Partners* (${agents.length})\n\n`;
       agents.forEach((a: any, idx: number) => {
-        replyMsg += `${idx + 1}. ✅ *${a.name}*\n   📱 ${a.phone} | 🏢 ${a.agency_name || "N/A"}\n\n`;
+        replyMsg += `${idx + 1}. \u2705 *${a.name}*\n   📈± ${a.phone} | ¢ ${a.agency_name || "N/A"}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1409,17 +1546,17 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false });
 
       if ((!agentDocs || agentDocs.length === 0) && (!builderDocs || builderDocs.length === 0)) {
-        const replyEmpty = "🤖 Bot: You have no documents saved in your vault, and no builder brochures are available.";
+        const replyEmpty = "\uD83E\uDD16 Bot: You have no documents saved in your vault, and no builder brochures are available.";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
-      let replyMsg = `📁 *Your Document Vault*\n\n`;
+      let replyMsg = `📈 *Your Document Vault*\n\n`;
 
       if (agentDocs && agentDocs.length > 0) {
         replyMsg += `*My Uploaded Documents:*\n`;
         agentDocs.forEach((d, idx) => {
-          replyMsg += `${idx + 1}. 📄 *${d.name}* (${d.type})\n   🔗 Link: ${d.url}\n\n`;
+          replyMsg += `${idx + 1}. 📈„ *${d.name}* (${d.type})\n   🔍— Link: ${d.url}\n\n`;
         });
       }
 
@@ -1427,11 +1564,11 @@ export async function POST(req: NextRequest) {
         replyMsg += `*Builder Brochures & Shared Docs:*\n`;
         builderDocs.forEach((d: any, idx: number) => {
           const projName = d.projects?.name ? ` - ${d.projects.name}` : "";
-          replyMsg += `${idx + 1}. 🏢 *${d.name}*${projName}\n   🔗 Link: ${d.url}\n\n`;
+          replyMsg += `${idx + 1}. ¢ *${d.name}*${projName}\n   🔍— Link: ${d.url}\n\n`;
         });
       }
 
-      replyMsg += `👉 You can send any file here, and it will be safely stored in your vault!`;
+      replyMsg += `‘‰ You can send any file here, and it will be safely stored in your vault!`;
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
     }
@@ -1446,12 +1583,12 @@ export async function POST(req: NextRequest) {
 
       const myRank = (allAgents || []).findIndex(a => a.name === profile.name) + 1;
 
-      const replyMsg = `🏆 *Your Rewards Summary*\n\n` +
+      const replyMsg = `† *Your Rewards Summary*\n\n` +
         `👤 Name: *${profile.name}*\n` +
-        `🆔 CP ID: *${profile.cp_id || "Pending"}*\n` +
-        `⭐ XP Points: *${profile.points || 0} XP*\n` +
-        `🥇 Leaderboard Rank: *#${myRank || "N/A"}* of ${allAgents?.length || 0} agents\n\n` +
-        `👉 Type _"aa leaderboard"_ to see top agents.`;
+        `†” CP ID: *${profile.cp_id || "Pending"}*\n` +
+        `â­ XP Points: *${profile.points || 0} XP*\n` +
+        `¥‡ Leaderboard Rank: *#${myRank || "N/A"}* of ${allAgents?.length || 0} agents\n\n` +
+        `‘‰ Type _"aa leaderboard"_ to see top agents.`;
       await sendOutboundReply(replyMsg);
       return NextResponse.json({ status: "success", reply: replyMsg });
     }
@@ -1465,13 +1602,13 @@ export async function POST(req: NextRequest) {
         .order("points", { ascending: false })
         .limit(10);
 
-      const medals = ["🥇", "🥈", "🥉"];
-      let replyMsg = `🏆 *Agent Leaderboard — Top 10*\n\n`;
+      const medals = ["¥‡", "¥ˆ", "¥‰"];
+      let replyMsg = `† *Agent Leaderboard â€” Top 10*\n\n`;
       (topAgents || []).forEach((a, idx) => {
         const medal = medals[idx] || `${idx + 1}.`;
-        replyMsg += `${medal} *${a.name}* — ${a.points || 0} XP\n   📍 ${a.location || "Hyderabad"}\n\n`;
+        replyMsg += `${medal} *${a.name}* â€” ${a.points || 0} XP\n   📈 ${a.location || "Hyderabad"}\n\n`;
       });
-      replyMsg += `👉 Type _"aa my points"_ to see your rank.`;
+      replyMsg += `‘‰ Type _"aa my points"_ to see your rank.`;
       await sendOutboundReply(replyMsg);
       return NextResponse.json({ status: "success", reply: replyMsg });
     }
@@ -1485,17 +1622,17 @@ export async function POST(req: NextRequest) {
         .order("date", { ascending: false });
 
       if (!referrals || referrals.length === 0) {
-        const replyEmpty = `🤖 Bot: You haven't referred any agents yet.\n\n🔗 Your referral link:\n${process.env.NEXT_PUBLIC_BASE_URL || "https://agentsapp.online"}/?ref=${profile.cp_id || ""}\n\nShare this link to earn *+500 XP* per approved referral!`;
+        const replyEmpty = `\uD83E\uDD16 Bot: You haven't referred any agents yet.\n\n🔍— Your referral link:\n${process.env.NEXT_PUBLIC_BASE_URL || "https://agentsapp.online"}/?ref=${profile.cp_id || ""}\n\nShare this link to earn *+500 XP* per approved referral!`;
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
       const approved = referrals.filter(r => r.status === "approved" || r.status === "active").length;
       const pending = referrals.filter(r => r.status === "pending").length;
-      let replyMsg = `🤝 *Your Referrals* (${referrals.length} total)\n✅ Approved: ${approved} | ⏳ Pending: ${pending}\n\n`;
+      let replyMsg = `¤ *Your Referrals* (${referrals.length} total)\n\u2705 Approved: ${approved} | â³ Pending: ${pending}\n\n`;
       referrals.forEach((r, idx) => {
-        const statusEmoji = r.status === "approved" ? "✅" : r.status === "pending" ? "⏳" : "❌";
-        replyMsg += `${idx + 1}. ${statusEmoji} *${r.referred_name}*\n   📱 ${r.referred_phone}\n   🗓️ ${r.date} | 🎁 ${r.points_awarded > 0 ? `+${r.points_awarded} XP` : "Pending"}\n\n`;
+        const statusEmoji = r.status === "approved" ? "\u2705" : r.status === "pending" ? "â³" : "âŒ";
+        replyMsg += `${idx + 1}. ${statusEmoji} *${r.referred_name}*\n   📈± ${r.referred_phone}\n   —“ï¸ ${r.date} | Ž ${r.points_awarded > 0 ? `+${r.points_awarded} XP` : "Pending"}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1503,17 +1640,17 @@ export async function POST(req: NextRequest) {
 
     // 18. MY PROFILE
     if (commandLower === "my profile" || commandLower === "profile" || commandLower === "my details") {
-      const statusEmoji = profile.status === "approved" ? "✅ Approved" : profile.status === "pending" ? "⏳ Pending Approval" : "❌ Rejected";
+      const statusEmoji = profile.status === "approved" ? "\u2705 Approved" : profile.status === "pending" ? "â³ Pending Approval" : "âŒ Rejected";
       const replyMsg = `👤 *Your AgentsApp Profile*\n\n` +
-        `📛 Name: *${profile.name}*\n` +
-        `🏢 Agency: *${profile.agency_name || "N/A"}*\n` +
-        `📱 Phone: *${profile.phone}*\n` +
-        `📧 Email: *${profile.email || "N/A"}*\n` +
-        `🆔 CP ID: *${profile.cp_id || "Pending"}*\n` +
-        `📄 RERA No: *${profile.rera_number || "Not submitted"}*\n` +
-        `📍 Location: *${profile.location || "N/A"}*\n` +
-        `⭐ XP Points: *${profile.points || 0} XP*\n` +
-        `✔️ Status: *${statusEmoji}*`;
+        `📈› Name: *${profile.name}*\n` +
+        `¢ Agency: *${profile.agency_name || "N/A"}*\n` +
+        `📈± Phone: *${profile.phone}*\n` +
+        `📈§ Email: *${profile.email || "N/A"}*\n` +
+        `†” CP ID: *${profile.cp_id || "Pending"}*\n` +
+        `📈„ RERA No: *${profile.rera_number || "Not submitted"}*\n` +
+        `📈 Location: *${profile.location || "N/A"}*\n` +
+        `â­ XP Points: *${profile.points || 0} XP*\n` +
+        `âœ”ï¸ Status: *${statusEmoji}*`;
       await sendOutboundReply(replyMsg);
       return NextResponse.json({ status: "success", reply: replyMsg });
     }
@@ -1533,15 +1670,15 @@ export async function POST(req: NextRequest) {
       );
 
       if (projectInvites.length === 0) {
-        const replyEmpty = "🤖 Bot: You are not following any projects yet. Check your Invitations tab and tap 'Follow Project' to start tracking.";
+        const replyEmpty = "\uD83E\uDD16 Bot: You are not following any projects yet. Check your Invitations tab and tap 'Follow Project' to start tracking.";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
-      let replyMsg = `🏢 *Projects You're Following* (${projectInvites.length})\n\n`;
+      let replyMsg = `¢ *Projects You're Following* (${projectInvites.length})\n\n`;
       projectInvites.forEach((inv, idx) => {
         const title = inv.events?.title?.replace("New Project: ", "") || "Unknown";
-        replyMsg += `${idx + 1}. 🏗️ *${title}*\n   📍 ${inv.events?.location || "N/A"}\n\n`;
+        replyMsg += `${idx + 1}. —ï¸ *${title}*\n   📈 ${inv.events?.location || "N/A"}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1561,14 +1698,14 @@ export async function POST(req: NextRequest) {
       );
 
       if (eventInvites.length === 0) {
-        const replyEmpty = "🤖 Bot: You haven't accepted any events yet. Type _\"aa launches\"_ to see upcoming events.";
+        const replyEmpty = "\uD83E\uDD16 Bot: You haven't accepted any events yet. Type _\"aa launches\"_ to see upcoming events.";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
-      let replyMsg = `📅 *Your Accepted Events* (${eventInvites.length})\n\n`;
+      let replyMsg = `📈… *Your Accepted Events* (${eventInvites.length})\n\n`;
       eventInvites.forEach((inv, idx) => {
-        replyMsg += `${idx + 1}. ✅ *${inv.events?.title || "Event"}*\n   📅 ${inv.events?.date || "TBD"}\n   📍 ${inv.events?.location || "N/A"}\n\n`;
+        replyMsg += `${idx + 1}. \u2705 *${inv.events?.title || "Event"}*\n   📈… ${inv.events?.date || "TBD"}\n   📈 ${inv.events?.location || "N/A"}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1585,16 +1722,16 @@ export async function POST(req: NextRequest) {
         .limit(10);
 
       if (!reminders || reminders.length === 0) {
-        const replyEmpty = "🤖 Bot: You have no pending reminders. Set one with:\n_\"aa Remind me to call Ravi time Tomorrow 10AM\"_";
+        const replyEmpty = "\uD83E\uDD16 Bot: You have no pending reminders. Set one with:\n_\"aa Remind me to call Ravi time Tomorrow 10AM\"_";
         await sendOutboundReply(replyEmpty);
         return NextResponse.json({ status: "success", reply: replyEmpty });
       }
 
-      const priorityEmoji: Record<string, string> = { high: "🔴", medium: "🟡", low: "🟢" };
-      let replyMsg = `⏰ *Your Pending Reminders* (${reminders.length})\n\n`;
+      const priorityEmoji: Record<string, string> = { high: "🔍´", medium: "Ÿ¡", low: "Ÿ¢" };
+      let replyMsg = `â° *Your Pending Reminders* (${reminders.length})\n\n`;
       reminders.forEach((r, idx) => {
-        const pe = priorityEmoji[r.priority] || "🔔";
-        replyMsg += `${idx + 1}. ${pe} *${r.title}*\n   🕐 ${r.scheduled_time}\n\n`;
+        const pe = priorityEmoji[r.priority] || "🔍”";
+        replyMsg += `${idx + 1}. ${pe} *${r.title}*\n   • ${r.scheduled_time}\n\n`;
       });
       await sendOutboundReply(replyMsg.trim());
       return NextResponse.json({ status: "success", reply: replyMsg.trim() });
@@ -1610,27 +1747,27 @@ export async function POST(req: NextRequest) {
 
       const leads = leadsRes.data || [];
       const hotLeads = leads.filter(l => ["interested", "site_visit", "negotiation"].includes(l.status)).length;
-      const replyMsg = `📊 *Your Dashboard Summary*\n\n` +
+      const replyMsg = `📈Š *Your Dashboard Summary*\n\n` +
         `👤 *${profile.name}* | CP ID: ${profile.cp_id || "Pending"}\n` +
-        `⭐ XP: *${profile.points || 0} pts*\n\n` +
-        `📋 *Leads*\n` +
-        `• Total: *${leads.length}*\n` +
-        `• Hot Leads: *${hotLeads}*\n\n` +
-        `⏰ *Pending Reminders:* ${remindersRes.data?.length || 0}\n` +
-        `📅 *Events Accepted:* ${eventsRes.data?.length || 0}\n\n` +
-        `👉 Type _"aa help"_ for all commands.`;
+        `â­ XP: *${profile.points || 0} pts*\n\n` +
+        `📈‹ *Leads*\n` +
+        `â€¢ Total: *${leads.length}*\n` +
+        `â€¢ Hot Leads: *${hotLeads}*\n\n` +
+        `â° *Pending Reminders:* ${remindersRes.data?.length || 0}\n` +
+        `📈… *Events Accepted:* ${eventsRes.data?.length || 0}\n\n` +
+        `‘‰ Type _"aa help"_ for all commands.`;
       await sendOutboundReply(replyMsg);
       return NextResponse.json({ status: "success", reply: replyMsg });
     }
 
     // Default/Fallback help menu
-    const helpMsg = `🤖 Bot: I didn't catch that command. Type *aa help* to see all available commands.`;
+    const helpMsg = `\uD83E\uDD16 Bot: I didn't catch that command. Type *aa help* to see all available commands.`;
     await sendOutboundReply(helpMsg);
     return NextResponse.json({ status: "success", reply: helpMsg });
 
   } catch (err: any) {
     console.error("Error processing WhatsApp POST Webhook:", err);
-    const replyErr = `🤖 Bot: ❌ Internal Webhook Error: ${err.message}`;
+    const replyErr = `\uD83E\uDD16 Bot: âŒ Internal Webhook Error: ${err.message}`;
     // Fallback send if error occurs
     const apiKey = process.env.GALLABOX_API_KEY;
     const apiSecret = process.env.GALLABOX_API_SECRET;

@@ -62,7 +62,7 @@ export default function InviteChannelPartnerModal({ isOpen, onClose, existingCon
       if (!error && data) {
         let finalData = data;
         if (existingConnections) {
-          finalData = data.filter(a => !existingConnections[a.id]);
+          finalData = data.filter(a => existingConnections[a.id] !== "connected");
         }
         setFilteredAgents(finalData);
         // By default, select all filtered agents

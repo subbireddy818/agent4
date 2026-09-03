@@ -13,7 +13,7 @@ export async function launchCampaignAction(
   location: string,
   description: string,
   targetLocations?: string[],
-  recipientFilter?: "all" | "verified" | "rera",
+  recipientFilter?: "all" | "verified" | "rera" | "channel_partners",
   interestedPropertyTarget?: string
 ): Promise<{ ok: boolean; error?: string; sentCount?: number }> {
   try {
@@ -78,6 +78,18 @@ export async function launchCampaignAction(
       agentQuery = agentQuery.eq("status", "approved");
     } else if (recipientFilter === "rera") {
       agentQuery = agentQuery.eq("is_rera_approved", true);
+    } else if (recipientFilter === "channel_partners") {
+      const { data: cps } = await supabaseAdmin
+        .from("channel_partners")
+        .select("agent_id")
+        .eq("builder_id", profile.id)
+        .eq("status", "connected");
+      
+      const cpIds = cps?.map(cp => cp.agent_id) || [];
+      if (cpIds.length === 0) {
+        return { ok: false, error: "You don't have any connected channel partners matching the criteria." };
+      }
+      agentQuery = agentQuery.in("id", cpIds);
     }
 
     // Filter by specific locations if provided
