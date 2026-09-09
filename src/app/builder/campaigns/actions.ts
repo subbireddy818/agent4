@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cookies } from "next/headers";
 import { sessionCookieName, verifySession } from "@/lib/session";
+import { sendMetaTextMessage, sendMetaInteractiveButtons } from "@/lib/whatsappMeta";
 
 export async function launchCampaignAction(
   phone: string,
@@ -171,6 +172,8 @@ export async function launchCampaignAction(
     }
 
     // 3. Send/Log WhatsApp message to filtered agents based on location
+    const metaToken = process.env.META_WHATSAPP_TOKEN;
+    const metaPhoneId = process.env.META_PHONE_NUMBER_ID;
     const apiKey = process.env.GALLABOX_API_KEY;
     const apiSecret = process.env.GALLABOX_API_SECRET;
     const channelId = process.env.GALLABOX_CHANNEL_ID;
@@ -180,12 +183,37 @@ export async function launchCampaignAction(
         if (!agent.phone) continue;
         const cleanPhone = agent.phone.replace(/\D/g, "");
         const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-        const messageText = `*${name}*\n\n${description}\n\nDate: ${date}\nLocation: ${location}`;
+        const messageText = `*${name}*\n\n${description}\n\n📅 Date: ${date}\n📍 Location: ${location}`;
 
         let status = 0;
         let errMsg: string | null = null;
+        let usedSource = "simulator";
 
-        if (apiKey && apiSecret && channelId) {
+        // Prioritize official Meta WhatsApp Cloud API with interactive buttons
+        if (metaToken && metaPhoneId) {
+          try {
+            usedSource = "meta";
+            // Send with interactive RSVP button for agents
+            const res = await sendMetaInteractiveButtons(
+              finalPhone,
+              messageText,
+              [
+                { id: "btn_rsvp_yes", title: "✅ RSVP Now" },
+                { id: "btn_view_details", title: "📋 View Details" }
+              ],
+              `📢 ${name}`,
+              "AgentsApp Broadcast"
+            );
+            status = res.ok ? 200 : (res as any).status || 400;
+            if (!res.ok) {
+              errMsg = (res as any).error || "Meta send failed";
+            }
+          } catch (metaErr: any) {
+            console.error("Meta send error:", metaErr);
+            errMsg = metaErr.message || String(metaErr);
+          }
+        } else if (apiKey && apiSecret && channelId) {
+          usedSource = "gallabox";
           try {
             const res = await fetch("https://server.gallabox.com/devapi/messages/whatsapp", {
               method: "POST",
@@ -219,7 +247,7 @@ export async function launchCampaignAction(
             errMsg = fetchErr.message || String(fetchErr);
           }
         } else {
-          errMsg = "GallaBox not configured (simulated)";
+          errMsg = "WhatsApp provider not configured (simulated)";
         }
 
         // Always write the message to the audit log so the agent's web chatbot can poll and receive it automatically
@@ -231,7 +259,7 @@ export async function launchCampaignAction(
             agent_id: agent.id,
             message_type: "text",
             content: messageText,
-            source: apiKey && apiSecret && channelId ? "gallabox" : "simulator",
+            source: usedSource,
             outbound_status: status,
             error_message: errMsg
           });

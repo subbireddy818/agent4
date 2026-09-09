@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { sendMetaTextMessage, sendMetaInteractiveButtons, sendMetaInteractiveList } from "@/lib/whatsappMeta";
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -129,12 +130,21 @@ export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED"
 
 
     // Support Meta, GallaBox, and Simulator payload formats
+    const metaMessage = payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const metaInteractive = metaMessage?.interactive;
+    const metaInteractiveText = 
+      metaInteractive?.button_reply?.title || 
+      metaInteractive?.button_reply?.id || 
+      metaInteractive?.list_reply?.title || 
+      metaInteractive?.list_reply?.id;
+
     let textBody = (
+      metaInteractiveText || // Meta interactive button/list click
       payload.whatsapp?.text?.body || // GallaBox whatsapp body
       payload.whatsapp?.text || // GallaBox whatsapp text
       payload.data?.message?.text?.body || // GallaBox standard
       payload.data?.message?.text || // GallaBox alternative
-      payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body || // Meta
+      metaMessage?.text?.body || // Meta standard text
       payload.message?.text || // GallaBox legacy
       payload.message?.text?.body || // GallaBox legacy alternative
       payload.payload?.message?.text || // GallaBox nested
@@ -260,14 +270,32 @@ export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED"
 
     // formattedPhone is already defined above
 
-    // Outbound helper to send messages back via GallaBox WhatsApp API
+    // Outbound helper to send messages back via Meta Cloud API or GallaBox WhatsApp API
     const sendOutboundReply = async (replyText: string) => {
+      const metaToken = process.env.META_WHATSAPP_TOKEN;
+      const metaPhoneId = process.env.META_PHONE_NUMBER_ID;
       const apiKey = process.env.GALLABOX_API_KEY;
       const apiSecret = process.env.GALLABOX_API_SECRET;
       const channelId = process.env.GALLABOX_CHANNEL_ID;
 
-      // For the simulator (and any time GallaBox isn't configured) we still
-      // want an audit trail of what the bot would have sent.
+      // Send via Meta Cloud API if configured and not from simulator
+      if (metaToken && metaPhoneId && !isFromSimulator) {
+        console.log(`Sending live Meta Cloud API reply to ${fromPhoneRaw}: ${replyText}`);
+        const res = await sendMetaTextMessage(fromPhoneRaw, replyText);
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: formattedPhone,
+          message_type: "text",
+          content: replyText,
+          source: "meta",
+          outbound_status: res.ok ? 200 : (res as any).status || 400,
+          error_message: res.ok ? null : (res as any).error,
+          raw_payload: (res as any).data || (res as any).raw,
+        });
+        return;
+      }
+
+      // For the simulator (and any time neither provider is configured)
       if (!apiKey || !apiSecret || !channelId || isFromSimulator) {
         await logWhatsappMessage({
           direction: "outbound",
@@ -277,7 +305,7 @@ export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED"
           source,
           // 0 indicates "not actually sent over the wire".
           outbound_status: 0,
-          error_message: isFromSimulator ? "simulator (not sent)" : "GallaBox not configured",
+          error_message: isFromSimulator ? "simulator (not sent)" : "Meta/GallaBox not configured",
         });
         return;
       }
@@ -326,6 +354,67 @@ export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED"
           error_message: e?.message || String(e),
         });
       }
+    };
+
+    // Outbound helper to send Interactive Buttons via Meta
+    const sendOutboundButtons = async (
+      bodyText: string, 
+      buttons: { id: string; title: string }[], 
+      headerText?: string, 
+      footerText?: string
+    ) => {
+      const metaToken = process.env.META_WHATSAPP_TOKEN;
+      const metaPhoneId = process.env.META_PHONE_NUMBER_ID;
+
+      if (metaToken && metaPhoneId && !isFromSimulator) {
+        const res = await sendMetaInteractiveButtons(fromPhoneRaw, bodyText, buttons, headerText, footerText);
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: formattedPhone,
+          message_type: "interactive",
+          content: `${bodyText} [Buttons: ${buttons.map(b => b.title).join(", ")}]`,
+          source: "meta",
+          outbound_status: res.ok ? 200 : (res as any).status || 400,
+          error_message: res.ok ? null : (res as any).error,
+          raw_payload: (res as any).data || (res as any).raw,
+        });
+        return;
+      }
+
+      // Fallback to text for simulator or legacy
+      const buttonText = buttons.map((b, i) => `${i + 1}. ${b.title}`).join("\n");
+      await sendOutboundReply(`${bodyText}\n\n${buttonText}`);
+    };
+
+    // Outbound helper to send Interactive List Menu via Meta
+    const sendOutboundList = async (
+      bodyText: string, 
+      buttonLabel: string, 
+      sections: { title: string; rows: { id: string; title: string; description?: string }[] }[],
+      headerText?: string,
+      footerText?: string
+    ) => {
+      const metaToken = process.env.META_WHATSAPP_TOKEN;
+      const metaPhoneId = process.env.META_PHONE_NUMBER_ID;
+
+      if (metaToken && metaPhoneId && !isFromSimulator) {
+        const res = await sendMetaInteractiveList(fromPhoneRaw, bodyText, buttonLabel, sections, headerText, footerText);
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: formattedPhone,
+          message_type: "interactive",
+          content: `${bodyText} [List: ${buttonLabel}]`,
+          source: "meta",
+          outbound_status: res.ok ? 200 : (res as any).status || 400,
+          error_message: res.ok ? null : (res as any).error,
+          raw_payload: (res as any).data || (res as any).raw,
+        });
+        return;
+      }
+
+      // Fallback to text
+      const listText = sections.map(s => `*${s.title}*\n` + s.rows.map(r => `• ${r.title}${r.description ? ` (${r.description})` : ''}`).join("\n")).join("\n\n");
+      await sendOutboundReply(`${bodyText}\n\n${listText}`);
     };
 
     // Query profiles in database to identify the agent
