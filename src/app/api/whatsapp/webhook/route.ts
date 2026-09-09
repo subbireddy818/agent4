@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
 import { sendMetaTextMessage, sendMetaInteractiveButtons, sendMetaInteractiveList } from "@/lib/whatsappMeta";
+import { sendAiSensyMessage } from "@/lib/whatsappAiSensy";
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -270,13 +271,31 @@ export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED"
 
     // formattedPhone is already defined above
 
-    // Outbound helper to send messages back via Meta Cloud API or GallaBox WhatsApp API
+    // Outbound helper to send messages back via Meta Cloud API, AiSensy, or GallaBox WhatsApp API
     const sendOutboundReply = async (replyText: string) => {
       const metaToken = process.env.META_WHATSAPP_TOKEN;
       const metaPhoneId = process.env.META_PHONE_NUMBER_ID;
+      const aisensyKey = process.env.AISENSY_API_KEY;
       const apiKey = process.env.GALLABOX_API_KEY;
       const apiSecret = process.env.GALLABOX_API_SECRET;
       const channelId = process.env.GALLABOX_CHANNEL_ID;
+
+      // Send via AiSensy if configured and not from simulator
+      if (aisensyKey && !isFromSimulator) {
+        console.log(`Sending live AiSensy reply to ${fromPhoneRaw}: ${replyText}`);
+        const res = await sendAiSensyMessage(fromPhoneRaw, replyText);
+        await logWhatsappMessage({
+          direction: "outbound",
+          phone: formattedPhone,
+          message_type: "text",
+          content: replyText,
+          source: "meta",
+          outbound_status: res.ok ? 200 : (res as any).status || 400,
+          error_message: res.ok ? null : (res as any).error,
+          raw_payload: (res as any).data,
+        });
+        return;
+      }
 
       // Send via Meta Cloud API if configured and not from simulator
       if (metaToken && metaPhoneId && !isFromSimulator) {
@@ -305,7 +324,7 @@ export async function POST(req: NextRequest) { console.log("WEBHOOK POST CALLED"
           source,
           // 0 indicates "not actually sent over the wire".
           outbound_status: 0,
-          error_message: isFromSimulator ? "simulator (not sent)" : "Meta/GallaBox not configured",
+          error_message: isFromSimulator ? "simulator (not sent)" : "WhatsApp provider not configured",
         });
         return;
       }

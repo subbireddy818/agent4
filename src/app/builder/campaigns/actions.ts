@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cookies } from "next/headers";
 import { sessionCookieName, verifySession } from "@/lib/session";
 import { sendMetaTextMessage, sendMetaInteractiveButtons } from "@/lib/whatsappMeta";
+import { sendAiSensyMessage } from "@/lib/whatsappAiSensy";
 
 export async function launchCampaignAction(
   phone: string,
@@ -172,6 +173,7 @@ export async function launchCampaignAction(
     }
 
     // 3. Send/Log WhatsApp message to filtered agents based on location
+    const aisensyKey = process.env.AISENSY_API_KEY;
     const metaToken = process.env.META_WHATSAPP_TOKEN;
     const metaPhoneId = process.env.META_PHONE_NUMBER_ID;
     const apiKey = process.env.GALLABOX_API_KEY;
@@ -189,8 +191,20 @@ export async function launchCampaignAction(
         let errMsg: string | null = null;
         let usedSource = "simulator";
 
-        // Prioritize official Meta WhatsApp Cloud API with interactive buttons
-        if (metaToken && metaPhoneId) {
+        // Prioritize AiSensy if configured
+        if (aisensyKey) {
+          try {
+            usedSource = "meta";
+            const res = await sendAiSensyMessage(finalPhone, messageText);
+            status = res.ok ? 200 : (res as any).status || 400;
+            if (!res.ok) {
+              errMsg = (res as any).error || "AiSensy send failed";
+            }
+          } catch (aiErr: any) {
+            console.error("AiSensy send error:", aiErr);
+            errMsg = aiErr.message || String(aiErr);
+          }
+        } else if (metaToken && metaPhoneId) {
           try {
             usedSource = "meta";
             // Send with interactive RSVP button for agents
